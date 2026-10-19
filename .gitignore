@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment & Secret files
+.env
+.env.*
+!.env.example
+*.env
+
+# Production & Build outputs
+dist/
+*/dist/
+build/
+*/build/
+out/
+*/out/
+
+# TypeScript build info & caches
+*.tsbuildinfo
+*/tsconfig.tsbuildinfo
+*/tsconfig.node.tsbuildinfo
+
+# Vite / Bundler caches
+.vite/
+*/.vite/
+.cache/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and Editor files
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+
+# Logs & temp files
+logs/
+*.log

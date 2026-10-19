@@ -53,19 +53,27 @@ export const Modal: React.FC<ModalProps> & {
   onSubmit,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const closeOnEscRef = useRef(closeOnEsc);
+  closeOnEscRef.current = closeOnEsc;
+  const hasFocusedRef = useRef(false);
 
   // Lock body scroll and trap focus when modal is open
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      hasFocusedRef.current = false;
+      return;
+    }
 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     // Focus trapping and keyboard event handling
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (closeOnEsc && e.key === 'Escape') {
+      if (closeOnEscRef.current && e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -94,26 +102,34 @@ export const Modal: React.FC<ModalProps> & {
 
     window.addEventListener('keydown', handleKeyDown);
 
-    // Initial focus on first interactive element or dialog
-    const focusTimer = setTimeout(() => {
-      if (modalRef.current) {
-        const firstInput = modalRef.current.querySelector<HTMLElement>(
-          'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
+    // Initial focus: only run once upon modal opening.
+    // Never steal focus if an element inside the dialog already has focus.
+    let focusTimer: ReturnType<typeof setTimeout> | undefined;
+    if (!hasFocusedRef.current) {
+      hasFocusedRef.current = true;
+      focusTimer = setTimeout(() => {
+        if (!modalRef.current) return;
+        // If focus is already inside dialog, do not steal focus
+        if (modalRef.current.contains(document.activeElement)) return;
+
+        // Target the first form input (never target header close button)
+        const firstFormInput = modalRef.current.querySelector<HTMLElement>(
+          'form input:not([disabled]):not([type="hidden"]), form select:not([disabled]), form textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
         );
-        if (firstInput) {
-          firstInput.focus();
+        if (firstFormInput) {
+          firstFormInput.focus();
         } else {
           modalRef.current.focus();
         }
-      }
-    }, 50);
+      }, 50);
+    }
 
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
-      clearTimeout(focusTimer);
+      if (focusTimer) clearTimeout(focusTimer);
     };
-  }, [isOpen, closeOnEsc, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

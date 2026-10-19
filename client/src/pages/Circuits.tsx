@@ -380,24 +380,24 @@ export const Circuits: React.FC = () => {
 
       {/* Alert Messages */}
       {errorMsg && (
-        <div className="p-3.5 bg-red-50/90 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between">
+        <div className="p-3.5 bg-[#C2413A]/10 border border-[#C2413A]/25 rounded-[10px] text-sm text-[#C2413A] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-[#C2413A] shrink-0" />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg('')} className="text-red-400 hover:text-red-700 p-0.5">
+          <button onClick={() => setErrorMsg('')} className="text-[#C2413A]/60 hover:text-[#C2413A] p-0.5">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-lg text-sm text-emerald-800 flex items-center justify-between">
+        <div className="p-3.5 bg-[#168060]/10 border border-[#168060]/25 rounded-[10px] text-sm text-[#168060] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-[#168060] shrink-0" />
             <span>{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg('')} className="text-emerald-400 hover:text-emerald-700 p-0.5">
+          <button onClick={() => setSuccessMsg('')} className="text-[#168060]/60 hover:text-[#168060] p-0.5">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -575,13 +575,13 @@ export const Circuits: React.FC = () => {
       >
         <div className="space-y-5">
           {formError && (
-            <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs">{formError}</div>
+            <div className="p-2.5 rounded-md bg-[#C2413A]/10 border border-[#C2413A]/25 text-[#C2413A] text-xs">{formError}</div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label-text block mb-1.5">
-                Circuit Code <span className="text-red-500">*</span>
+                Circuit Code <span className="text-[#C2413A]">*</span>
               </label>
               <input
                 type="text"
@@ -590,12 +590,12 @@ export const Circuits: React.FC = () => {
                 placeholder="e.g. PCB-001"
                 value={formData.circuitCode}
                 onChange={(e) => setFormData({ ...formData, circuitCode: e.target.value.toUpperCase() })}
-                className="input-enterprise font-mono uppercase disabled:bg-slate-50 disabled:text-slate-500"
+                className="input-enterprise font-mono uppercase disabled:bg-[#F7F6F3] disabled:text-[#6B6863]"
               />
             </div>
             <div>
               <label className="label-text block mb-1.5">
-                Version <span className="text-red-500">*</span>
+                Version <span className="text-[#C2413A]">*</span>
               </label>
               <input
                 type="text"
@@ -604,7 +604,7 @@ export const Circuits: React.FC = () => {
                 placeholder="e.g. 1.0"
                 value={formData.version}
                 onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                className="input-enterprise font-mono disabled:bg-slate-50 disabled:text-slate-500"
+                className="input-enterprise font-mono disabled:bg-[#F7F6F3] disabled:text-[#6B6863]"
               />
               {formMode === 'edit' && (
                 <p className="helper-text mt-1">Use "Duplicate as New Version" to change the version.</p>
@@ -612,7 +612,7 @@ export const Circuits: React.FC = () => {
             </div>
             <div className="sm:col-span-2">
               <label className="label-text block mb-1.5">
-                Circuit Name <span className="text-red-500">*</span>
+                Circuit Name <span className="text-[#C2413A]">*</span>
               </label>
               <input
                 type="text"
@@ -903,10 +903,6 @@ export const Circuits: React.FC = () => {
                   </table>
                 </div>
 
-                <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5" />
-                  Linked jobs will appear here once the Jobs module is available.
-                </div>
               </>
             ) : (
               <p className="text-sm text-slate-400">Failed to load circuit details.</p>

@@ -137,39 +137,39 @@ export const Masters: React.FC = () => {
 
   return (
     <div className="space-y-4 w-full">
-      <div className="pb-2 border-b border-slate-200">
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Master Data Management</h1>
-        <p className="text-xs text-slate-500 mt-0.5">
+      <div className="pb-2 border-b border-[#E6E3DE]">
+        <h1 className="text-xl font-bold text-[#171717] tracking-tight">Master Data Management</h1>
+        <p className="text-xs text-[#6B6863] mt-0.5">
           Component categories, units of measurement, and physical warehouse bin locations.
         </p>
       </div>
 
       {errorMsg && (
-        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center justify-between">
+        <div className="p-3 rounded-[10px] bg-[#C2413A]/10 border border-[#C2413A]/25 text-[#C2413A] text-xs flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-600" />
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-[#C2413A]" />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg('')} className="text-red-500 hover:text-red-700">
+          <button onClick={() => setErrorMsg('')} className="text-[#C2413A]/60 hover:text-[#C2413A]">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center justify-between">
+        <div className="p-3 rounded-[10px] bg-[#168060]/10 border border-[#168060]/25 text-[#168060] text-xs flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <CheckCircle2 className="w-4 h-4 text-[#168060]" />
             <span>{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg('')} className="text-emerald-500 hover:text-emerald-700">
+          <button onClick={() => setSuccessMsg('')} className="text-[#168060]/60 hover:text-[#168060]">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-slate-200">
+      <div className="flex items-center gap-1 border-b border-[#E6E3DE]">
         <button
           onClick={() => {
             setActiveTab('categories');
@@ -177,8 +177,8 @@ export const Masters: React.FC = () => {
           }}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
             activeTab === 'categories'
-              ? 'border-[#4F46E5] text-[#4F46E5]'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[#807365] text-[#171717]'
+              : 'border-transparent text-[#6B6863] hover:text-[#171717]'
           }`}
         >
           <FolderTree className="w-3.5 h-3.5" />
@@ -192,8 +192,8 @@ export const Masters: React.FC = () => {
           }}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
             activeTab === 'units'
-              ? 'border-[#4F46E5] text-[#4F46E5]'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[#807365] text-[#171717]'
+              : 'border-transparent text-[#6B6863] hover:text-[#171717]'
           }`}
         >
           <Ruler className="w-3.5 h-3.5" />
@@ -207,8 +207,8 @@ export const Masters: React.FC = () => {
           }}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
             activeTab === 'locations'
-              ? 'border-[#4F46E5] text-[#4F46E5]'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[#807365] text-[#171717]'
+              : 'border-transparent text-[#6B6863] hover:text-[#171717]'
           }`}
         >
           <MapPin className="w-3.5 h-3.5" />
@@ -219,46 +219,46 @@ export const Masters: React.FC = () => {
       {/* TAB 1: CATEGORIES */}
       {activeTab === 'categories' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="md:col-span-1 shadcn-card p-4 h-fit">
-            <h3 className="text-xs font-bold text-slate-900 mb-2.5">Add Category</h3>
+          <div className="md:col-span-1 enterprise-card p-4 h-fit">
+            <h3 className="text-xs font-bold text-[#171717] mb-2.5">Add Category</h3>
             <form onSubmit={handleAddCategory} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Name</label>
+                <label className="label-text block mb-1">Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Optocouplers"
                   value={categoryName}
                   onChange={(e) => setCategoryName(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                  className="input-enterprise !h-9 text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Description</label>
+                <label className="label-text block mb-1">Description</label>
                 <textarea
                   rows={2}
                   placeholder="Description..."
                   value={categoryDesc}
                   onChange={(e) => setCategoryDesc(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                  className="textarea-enterprise !p-2.5 text-xs"
                 ></textarea>
               </div>
               <button
                 type="submit"
-                className="btn-linear-primary w-full"
+                className="btn-primary w-full"
               >
                 Create Category
               </button>
             </form>
           </div>
 
-          <div className="md:col-span-2 shadcn-card overflow-hidden">
-            <table className="min-w-full divide-y divide-slate-200">
+          <div className="md:col-span-2 enterprise-card overflow-hidden">
+            <table className="min-w-full divide-y divide-[#E6E3DE]">
               <thead>
                 <tr>
-                  <th className="table-compact-th">Category Name</th>
-                  <th className="table-compact-th">Description</th>
-                  {isAdmin && <th className="table-compact-th text-right">Action</th>}
+                  <th className="th-enterprise">Category Name</th>
+                  <th className="th-enterprise">Description</th>
+                  {isAdmin && <th className="th-enterprise text-right">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
@@ -272,15 +272,15 @@ export const Masters: React.FC = () => {
                   </tr>
                 ) : (
                   categories.map((cat) => (
-                    <tr key={cat._id} className="table-row-interactive">
-                      <td className="table-compact-td font-semibold text-slate-900">{cat.name}</td>
-                      <td className="table-compact-td text-slate-500 text-xs">{cat.description || '-'}</td>
+                    <tr key={cat._id} className="tr-enterprise">
+                      <td className="td-enterprise font-semibold text-[#171717]">{cat.name}</td>
+                      <td className="td-enterprise text-[#6B6863] text-xs">{cat.description || '-'}</td>
                       {isAdmin && (
-                        <td className="table-compact-td text-right">
+                        <td className="td-enterprise text-right">
                           <button
                             onClick={() => handleDeleteCategory(cat)}
                             title="Delete Category"
-                            className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
+                            className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -298,47 +298,47 @@ export const Masters: React.FC = () => {
       {/* TAB 2: UNITS */}
       {activeTab === 'units' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="md:col-span-1 shadcn-card p-4 h-fit">
-            <h3 className="text-xs font-bold text-slate-900 mb-2.5">Add Unit</h3>
+          <div className="md:col-span-1 enterprise-card p-4 h-fit">
+            <h3 className="text-xs font-bold text-[#171717] mb-2.5">Add Unit</h3>
             <form onSubmit={handleAddUnit} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Unit Name</label>
+                <label className="label-text block mb-1">Unit Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Kilograms"
                   value={unitName}
                   onChange={(e) => setUnitName(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                  className="input-enterprise !h-9 text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Short Code</label>
+                <label className="label-text block mb-1">Short Code</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. KG"
                   value={unitShortCode}
                   onChange={(e) => setUnitShortCode(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-1.5 text-xs uppercase font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                  className="input-enterprise !h-9 text-xs uppercase font-mono"
                 />
               </div>
               <button
                 type="submit"
-                className="btn-linear-primary w-full"
+                className="btn-primary w-full"
               >
                 Create Unit
               </button>
             </form>
           </div>
 
-          <div className="md:col-span-2 shadcn-card overflow-hidden">
-            <table className="min-w-full divide-y divide-slate-200">
+          <div className="md:col-span-2 enterprise-card overflow-hidden">
+            <table className="min-w-full divide-y divide-[#E6E3DE]">
               <thead>
                 <tr>
-                  <th className="table-compact-th">Unit Name</th>
-                  <th className="table-compact-th">Short Code</th>
-                  {isAdmin && <th className="table-compact-th text-right">Action</th>}
+                  <th className="th-enterprise">Unit Name</th>
+                  <th className="th-enterprise">Short Code</th>
+                  {isAdmin && <th className="th-enterprise text-right">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
@@ -352,15 +352,15 @@ export const Masters: React.FC = () => {
                   </tr>
                 ) : (
                   units.map((u) => (
-                    <tr key={u._id} className="table-row-interactive">
-                      <td className="table-compact-td font-semibold text-slate-900">{u.name}</td>
-                      <td className="table-compact-td font-mono font-bold text-[#4F46E5]">{u.shortCode}</td>
+                    <tr key={u._id} className="tr-enterprise">
+                      <td className="td-enterprise font-semibold text-[#171717]">{u.name}</td>
+                      <td className="td-enterprise font-mono font-bold text-[#171717]">{u.shortCode}</td>
                       {isAdmin && (
-                        <td className="table-compact-td text-right">
+                        <td className="td-enterprise text-right">
                           <button
                             onClick={() => handleDeleteUnit(u)}
                             title="Delete Unit"
-                            className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
+                            className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -378,57 +378,57 @@ export const Masters: React.FC = () => {
       {/* TAB 3: STORAGE LOCATIONS */}
       {activeTab === 'locations' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="md:col-span-1 shadcn-card p-4 h-fit">
-            <h3 className="text-xs font-bold text-slate-900 mb-2.5">Add Storage Location</h3>
+          <div className="md:col-span-1 enterprise-card p-4 h-fit">
+            <h3 className="text-xs font-bold text-[#171717] mb-2.5">Add Storage Location</h3>
             <form onSubmit={handleAddLocation} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Rack / Bin Name</label>
+                <label className="label-text block mb-1">Rack / Bin Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Rack D - Bin 04"
                   value={locName}
                   onChange={(e) => setLocName(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                  className="input-enterprise !h-9 text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Zone (Optional)</label>
+                <label className="label-text block mb-1">Zone (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. Zone D"
                   value={locZone}
                   onChange={(e) => setLocZone(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                  className="input-enterprise !h-9 text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Description</label>
+                <label className="label-text block mb-1">Description</label>
                 <textarea
                   rows={2}
                   placeholder="Notes..."
                   value={locDesc}
                   onChange={(e) => setLocDesc(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                  className="textarea-enterprise !p-2.5 text-xs"
                 ></textarea>
               </div>
               <button
                 type="submit"
-                className="btn-linear-primary w-full"
+                className="btn-primary w-full"
               >
                 Create Location
               </button>
             </form>
           </div>
 
-          <div className="md:col-span-2 shadcn-card overflow-hidden">
-            <table className="min-w-full divide-y divide-slate-200">
+          <div className="md:col-span-2 enterprise-card overflow-hidden">
+            <table className="min-w-full divide-y divide-[#E6E3DE]">
               <thead>
                 <tr>
-                  <th className="table-compact-th">Location Name</th>
-                  <th className="table-compact-th">Zone</th>
-                  <th className="table-compact-th">Description</th>
-                  {isAdmin && <th className="table-compact-th text-right">Action</th>}
+                  <th className="th-enterprise">Location Name</th>
+                  <th className="th-enterprise">Zone</th>
+                  <th className="th-enterprise">Description</th>
+                  {isAdmin && <th className="th-enterprise text-right">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
@@ -442,16 +442,16 @@ export const Masters: React.FC = () => {
                   </tr>
                 ) : (
                   locations.map((l) => (
-                    <tr key={l._id} className="table-row-interactive">
-                      <td className="table-compact-td font-semibold text-slate-900">{l.name}</td>
-                      <td className="table-compact-td text-slate-500 text-xs">{l.zone || '-'}</td>
-                      <td className="table-compact-td text-slate-500 text-xs">{l.description || '-'}</td>
+                    <tr key={l._id} className="tr-enterprise">
+                      <td className="td-enterprise font-semibold text-[#171717]">{l.name}</td>
+                      <td className="td-enterprise text-[#6B6863] text-xs">{l.zone || '-'}</td>
+                      <td className="td-enterprise text-[#6B6863] text-xs">{l.description || '-'}</td>
                       {isAdmin && (
-                        <td className="table-compact-td text-right">
+                        <td className="td-enterprise text-right">
                           <button
                             onClick={() => handleDeleteLocation(l)}
                             title="Delete Location"
-                            className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
+                            className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

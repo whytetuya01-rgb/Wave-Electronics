@@ -14,10 +14,13 @@ import {
   Truck,
   CheckCircle2,
   Clock,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [stats, setStats] = useState({
     totalComponents: 0,
     lowStockCount: 0,
@@ -34,6 +37,7 @@ export const Dashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setErrorMsg('');
       const [compRes, catRes, locRes, lowRes] = await Promise.all([
         api.get('/components?limit=200'),
         api.get('/masters/categories'),
@@ -56,8 +60,9 @@ export const Dashboard: React.FC = () => {
       });
 
       setLowStockItems(lowRes.data.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
+      setErrorMsg(error.response?.data?.message || 'Failed to load dashboard data. Try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -69,6 +74,18 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {errorMsg && (
+        <div className="p-3.5 bg-[#C2413A]/10 border border-[#C2413A]/25 rounded-[10px] text-sm text-[#C2413A] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-[#C2413A] shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button onClick={() => setErrorMsg('')} className="text-[#C2413A]/60 hover:text-[#C2413A] p-0.5">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>

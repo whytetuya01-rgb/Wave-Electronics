@@ -10,6 +10,7 @@ import {
   Search,
   Filter,
   AlertTriangle,
+  AlertCircle,
   History,
   Sliders,
   X,
@@ -58,6 +59,7 @@ export const ComponentsList: React.FC = () => {
   const [units, setUnits] = useState<MasterOption[]>([]);
   const [locations, setLocations] = useState<MasterOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Filters (Attio Style)
   const [search, setSearch] = useState('');
@@ -115,14 +117,16 @@ export const ComponentsList: React.FC = () => {
       setCategories(catRes.data);
       setUnits(unitRes.data);
       setLocations(locRes.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load masters:', err);
+      setErrorMsg(err.response?.data?.message || 'Failed to load categories/units/locations');
     }
   };
 
   const fetchComponents = async () => {
     try {
       setLoading(true);
+      setErrorMsg('');
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (selectedCategory) params.append('categoryId', selectedCategory);
@@ -130,8 +134,9 @@ export const ComponentsList: React.FC = () => {
 
       const res = await api.get(`/components?${params.toString()}`);
       setComponents(res.data.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load components:', err);
+      setErrorMsg(err.response?.data?.message || 'Failed to load components');
     } finally {
       setLoading(false);
     }
@@ -234,16 +239,16 @@ export const ComponentsList: React.FC = () => {
 
   return (
     <div className="space-y-4 w-full">
-      {/* Top Header & Primary Action (Linear Style) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+      {/* Top Header & Primary Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#E6E3DE]">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Component Stock & Catalog</h1>
+            <h1 className="text-xl font-bold text-[#171717] tracking-tight">Component Stock & Catalog</h1>
             <span className="badge-status badge-status-neutral text-[11px] font-mono">
               {components.length} items
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[#6B6863] mt-0.5">
             Active electronic components, storage balances, and immutable movement ledger.
           </p>
         </div>
@@ -255,7 +260,7 @@ export const ComponentsList: React.FC = () => {
                 resetAddForm();
                 setShowAddModal(true);
               }}
-              className="btn-linear-primary"
+              className="btn-primary"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Component</span>
@@ -264,17 +269,29 @@ export const ComponentsList: React.FC = () => {
         </div>
       </div>
 
-      {/* Advanced Search & Filter Bar (Attio Style) */}
-      <div className="shadcn-card p-3 flex flex-col md:flex-row items-center justify-between gap-3">
+      {errorMsg && (
+        <div className="p-3.5 bg-[#C2413A]/10 border border-[#C2413A]/25 rounded-[10px] text-sm text-[#C2413A] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-[#C2413A] shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button onClick={() => setErrorMsg('')} className="text-[#C2413A]/60 hover:text-[#C2413A] p-0.5">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Advanced Search & Filter Bar */}
+      <div className="enterprise-card p-3 flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Search Input */}
         <div className="flex-1 w-full relative">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-[#807365] absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Filter by part code, description, footprint..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50/70 border border-slate-200 rounded-md focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] transition-all"
+            className="input-enterprise pl-9 !h-9 text-xs"
           />
         </div>
 
@@ -284,7 +301,7 @@ export const ComponentsList: React.FC = () => {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+            className="select-enterprise !h-9 text-xs w-auto"
           >
             <option value="">All Categories ({categories.length})</option>
             {categories.map((cat) => (
@@ -300,11 +317,11 @@ export const ComponentsList: React.FC = () => {
             onClick={() => setLowStockOnly(!lowStockOnly)}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
               lowStockOnly
-                ? 'bg-amber-50 text-[#D97706] border-amber-300 font-semibold'
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                ? 'bg-[#B7791F]/10 text-[#B7791F] border-[#B7791F]/40 font-semibold'
+                : 'bg-white text-[#6B6863] border-[#E6E3DE] hover:bg-[#F7F6F3]'
             }`}
           >
-            <AlertTriangle className={`w-3.5 h-3.5 ${lowStockOnly ? 'text-[#D97706]' : 'text-slate-400'}`} />
+            <AlertTriangle className={`w-3.5 h-3.5 ${lowStockOnly ? 'text-[#B7791F]' : 'text-[#A69B8D]'}`} />
             <span>Low Stock</span>
           </button>
         </div>
@@ -347,12 +364,12 @@ export const ComponentsList: React.FC = () => {
                       {/* Part Code */}
                       <td className="table-compact-td">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-[#4F46E5]">
+                          <span className="font-mono font-bold text-[#171717]">
                             {comp.partCode}
                           </span>
                           {isLow && (
                             <span
-                              className="w-1.5 h-1.5 rounded-full bg-[#D97706]"
+                              className="w-1.5 h-1.5 rounded-full bg-[#B7791F]"
                               title={`Below safety reserve (${comp.minStock})`}
                             ></span>
                           )}
@@ -360,58 +377,58 @@ export const ComponentsList: React.FC = () => {
                       </td>
 
                       {/* Name */}
-                      <td className="table-compact-td font-medium text-slate-900 max-w-xs truncate">
+                      <td className="table-compact-td font-medium text-[#171717] max-w-xs truncate">
                         {comp.name}
                       </td>
 
                       {/* Category */}
-                      <td className="table-compact-td text-slate-600">
+                      <td className="table-compact-td text-[#6B6863]">
                         {comp.categoryId?.name || '-'}
                       </td>
 
                       {/* Footprint / Package */}
                       <td className="table-compact-td">
                         {comp.package ? (
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#F7F6F3] text-[#383531]">
                             {comp.package}
                           </span>
                         ) : (
-                          <span className="text-slate-400">-</span>
+                          <span className="text-[#A69B8D]">-</span>
                         )}
                       </td>
 
                       {/* In Store Stock (Physical on shelves) */}
-                      <td className="table-compact-td text-right font-mono font-bold text-slate-900">
+                      <td className="table-compact-td text-right font-mono font-bold text-[#171717]">
                         {comp.inStoreStock}{' '}
-                        <span className="text-[10px] text-slate-400 font-normal">
+                        <span className="text-[10px] text-[#A69B8D] font-normal">
                           {comp.unitId?.shortCode}
                         </span>
                       </td>
 
                       {/* Reserved (Allocated to approved jobs) */}
-                      <td className="table-compact-td text-right font-mono text-[#D97706] font-medium">
+                      <td className="table-compact-td text-right font-mono text-[#B7791F] font-medium">
                         {comp.reservedStock}
                       </td>
 
                       {/* Available (Free to allocate) */}
-                      <td className="table-compact-td text-right font-mono font-bold text-[#059669]">
+                      <td className="table-compact-td text-right font-mono font-bold text-[#168060]">
                         {comp.availableStock ?? Math.max(0, comp.inStoreStock - comp.reservedStock)}
                       </td>
 
                       {/* Rate */}
-                      <td className="table-compact-td text-right font-mono text-slate-600">
+                      <td className="table-compact-td text-right font-mono text-[#6B6863]">
                         ₹{comp.ratePerUnit.toFixed(2)}
                       </td>
 
                       {/* Location */}
-                      <td className="table-compact-td text-slate-600">
+                      <td className="table-compact-td text-[#6B6863]">
                         {comp.locationId?.name ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
-                            <MapPin className="w-3 h-3 text-slate-400" />
+                          <span className="inline-flex items-center gap-1 text-[11px] text-[#6B6863]">
+                            <MapPin className="w-3 h-3 text-[#A69B8D]" />
                             {comp.locationId.name}
                           </span>
                         ) : (
-                          <span className="text-slate-400 italic text-[11px]">Unassigned</span>
+                          <span className="text-[#A69B8D] italic text-[11px]">Unassigned</span>
                         )}
                       </td>
 
@@ -421,15 +438,15 @@ export const ComponentsList: React.FC = () => {
                           <button
                             onClick={() => handleOpenDetails(comp)}
                             title="View Stock Breakdown & Ledger Audit"
-                            className="btn-linear-ghost p-1"
+                            className="btn-ghost p-1"
                           >
-                            <Eye className="w-3.5 h-3.5 text-slate-500" />
+                            <Eye className="w-3.5 h-3.5 text-[#6B6863]" />
                           </button>
                           {isStoreKeeper && (
                             <button
                               onClick={() => handleOpenAdjust(comp)}
                               title="Stock Adjustment"
-                              className="btn-linear-ghost p-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                              className="btn-ghost p-1 text-[#B7791F] hover:text-[#8f5e17] hover:bg-[#B7791F]/10"
                             >
                               <Sliders className="w-3.5 h-3.5" />
                             </button>
@@ -716,7 +733,7 @@ export const ComponentsList: React.FC = () => {
               <p className="text-[#6B6863] truncate mt-0.5">{activeComponent.name}</p>
               <div className="mt-2.5 pt-2 border-t border-[#E6E3DE] flex justify-between font-mono text-xs">
                 <span>In Store: <strong className="text-[#141414]">{activeComponent.inStoreStock}</strong></span>
-                <span>Reserved: <strong className="text-[#D97706]">{activeComponent.reservedStock}</strong></span>
+                <span>Reserved: <strong className="text-[#B7791F]">{activeComponent.reservedStock}</strong></span>
                 <span>Available: <strong className="text-[#168060]">{activeComponent.availableStock}</strong></span>
               </div>
             </div>
@@ -809,9 +826,9 @@ export const ComponentsList: React.FC = () => {
                 <p className="text-[11px] font-medium text-[#6B6863] uppercase tracking-wider">In Store</p>
                 <p className="text-xl font-bold font-mono text-[#141414] mt-1">{activeComponent.inStoreStock}</p>
               </div>
-              <div className="p-3.5 rounded-xl border border-[#D97706]/30 bg-[#FFFBEB]">
-                <p className="text-[11px] font-medium text-[#D97706] uppercase tracking-wider">Reserved</p>
-                <p className="text-xl font-bold font-mono text-[#D97706] mt-1">{activeComponent.reservedStock}</p>
+              <div className="p-3.5 rounded-xl border border-[#B7791F]/30 bg-[#B7791F]/5">
+                <p className="text-[11px] font-medium text-[#B7791F] uppercase tracking-wider">Reserved</p>
+                <p className="text-xl font-bold font-mono text-[#B7791F] mt-1">{activeComponent.reservedStock}</p>
               </div>
               <div className="p-3.5 rounded-xl border border-[#168060]/30 bg-[#F0FDF4]">
                 <p className="text-[11px] font-medium text-[#168060] uppercase tracking-wider">Available</p>

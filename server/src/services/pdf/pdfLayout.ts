@@ -138,7 +138,7 @@ export function drawKeyValueBlock(
         .font('Helvetica')
         .fontSize(9.5)
         .fillColor(COLORS.black)
-        .text(String(value), x, y + 10, { width: colWidth - 10, lineBreak: false, ellipsis: true });
+        .text(String(value), x, y + 10, { width: colWidth - 10, height: 12, lineBreak: false, ellipsis: true });
     });
     y += rowHeight + 14;
   }
@@ -178,6 +178,11 @@ export function drawTable(
     doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.black);
     let x = left;
     for (const col of columns) {
+      // Headers are short, known strings (e.g. "REQUIRED QTY") - letting
+      // them wrap naturally onto the header row's existing second line is
+      // more readable than truncating with "...", and headerHeight already
+      // has room for two lines, so this was never the source of the
+      // row-overlap bug (only the data rows, which ARE bounded below).
       doc.text(col.label.toUpperCase(), x + 5, atY + 7, { width: col.width - 8, align: col.align || 'left', lineBreak: false });
       x += col.width;
     }
@@ -207,8 +212,15 @@ export function drawTable(
     let x = left;
     for (const col of columns) {
       const value = row[col.key];
+      // ellipsis:true only actually truncates when a bounded `height` is
+      // also given - without it, PDFKit just lets long text wrap onto a
+      // second line instead of cutting it off, which then overlaps the row
+      // separator drawn at a fixed rowHeight below. Bounding both together
+      // is what makes long part codes/names truncate with "..." on one
+      // line instead of visually colliding with the next row.
       doc.text(value === undefined || value === null ? '-' : String(value), x + 5, y + 6, {
         width: col.width - 8,
+        height: rowHeight - 8,
         align: col.align || 'left',
         ellipsis: true,
         lineBreak: false,

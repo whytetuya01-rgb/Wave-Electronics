@@ -485,7 +485,7 @@ export const receiveJobMaterial = async (req: AuthRequest, res: Response): Promi
 
 export const getJobReceiptsByJob = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const receipts = await JobReceipt.find({ jobId: req.params.jobId })
+    const receipts = await JobReceipt.find({ jobId: req.params.id })
       .populate('receivedById', 'name email')
       .sort({ createdAt: -1 });
     res.json({ data: receipts });

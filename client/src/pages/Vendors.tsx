@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Badge } from '../components/ui/Badge';
+import { Modal, ConfirmModal } from '../components/ui/Modal';
 import {
   Truck,
   Plus,
@@ -63,6 +64,8 @@ export const Vendors: React.FC = () => {
   const [selectedVendor, setSelectedVendor] = useState<VendorItem | null>(null);
   const [detailedVendorData, setDetailedVendorData] = useState<any>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [vendorToDelete, setVendorToDelete] = useState<VendorItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -213,14 +216,24 @@ export const Vendors: React.FC = () => {
     }
   };
 
-  const handleDeleteVendor = async (v: VendorItem) => {
-    if (!window.confirm(`Are you sure you want to permanently delete vendor '${v.name}'?`)) return;
+  const handleDeleteVendor = (v: VendorItem) => {
+    setVendorToDelete(v);
+    setErrorMsg('');
+  };
+
+  const executeDeleteVendor = async () => {
+    if (!vendorToDelete) return;
+    setDeleteLoading(true);
+    setErrorMsg('');
     try {
-      await api.delete(`/vendors/${v._id}`);
-      setSuccessMsg(`Vendor '${v.name}' deleted successfully`);
+      await api.delete(`/vendors/${vendorToDelete._id}`);
+      setSuccessMsg(`Vendor '${vendorToDelete.name}' deleted successfully`);
+      setVendorToDelete(null);
       fetchVendors();
     } catch (err: any) {
       setErrorMsg(err.response?.data?.message || 'Failed to delete vendor');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -582,32 +595,39 @@ export const Vendors: React.FC = () => {
       </div>
 
       {/* ADD / EDIT VENDOR DIALOG */}
-      {(showAddModal || showEditModal) && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full border border-[#E6E3DE] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
-            {/* Header */}
-            <div className="px-6 py-4.5 bg-white border-b border-[#E6E3DE] flex items-center justify-between">
-              <div>
-                <h3 className="section-heading text-[#171717]">
-                  {showAddModal ? 'Add Assembler Vendor' : `Edit Assembler: ${selectedVendor?.name}`}
-                </h3>
-                <p className="helper-text mt-0.5 text-[#6B6863]">
-                  Configure company profile, contact details, tax ID, and standard job-work assembly rate.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setShowEditModal(false);
-                }}
-                className="btn-ghost p-1.5 rounded-[8px]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={showAddModal ? handleCreateVendor : handleUpdateVendor} className="p-6 space-y-4">
+      <Modal
+        isOpen={showAddModal || showEditModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setShowEditModal(false);
+        }}
+        size="lg"
+        icon={<Truck className="w-5 h-5 text-[#807365]" />}
+        title={showAddModal ? 'Add Assembler Vendor' : `Edit Assembler: ${selectedVendor?.name}`}
+        subtitle="Configure company profile, contact details, tax ID, and standard job-work assembly rate."
+        onSubmit={showAddModal ? handleCreateVendor : handleUpdateVendor}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddModal(false);
+                setShowEditModal(false);
+              }}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary"
+            >
+              {showAddModal ? 'Save Assembler' : 'Save Changes'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="label-text block mb-1.5">
@@ -753,204 +773,181 @@ export const Vendors: React.FC = () => {
                   />
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#E6E3DE]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setShowEditModal(false);
-                  }}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                >
-                  {showAddModal ? 'Save Assembler' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* VENDOR DETAILS & MATERIAL LEDGER MODAL */}
-      {showDetailsModal && selectedVendor && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full border border-[#E6E3DE] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
-            {/* Header in Primary Black with White & Golden Grey accents */}
-            <div className="px-6 py-5 bg-[#141414] text-white flex items-center justify-between border-b border-[#252525]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-[8px] bg-[#1C1C1C] border border-[#303030] flex items-center justify-center text-[#A69B8D] shadow-xs">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-semibold text-white tracking-tight">{selectedVendor.name}</h2>
-                    <Badge variant={selectedVendor.isActive ? 'success' : 'neutral'} dot>
-                      {selectedVendor.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-[#A69B8D] mt-0.5">
-                    {selectedVendor.contactPerson} • {selectedVendor.city}, {selectedVendor.state || 'Maharashtra'}
-                  </p>
-                </div>
-              </div>
-              <button onClick={() => setShowDetailsModal(false)} className="btn-ghost text-[#A69B8D] hover:text-white p-1.5">
-                <X className="w-5 h-5" />
-              </button>
+      {selectedVendor && (
+        <Modal
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          size="2xl"
+          icon={<Truck className="w-5 h-5 text-[#807365]" />}
+          title={
+            <div className="flex items-center gap-2">
+              <span>{selectedVendor.name}</span>
+              <Badge variant={selectedVendor.isActive ? 'success' : 'neutral'} dot>
+                {selectedVendor.isActive ? 'Active' : 'Inactive'}
+              </Badge>
             </div>
-
-            {/* Details Content */}
-            <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto bg-[#F7F6F3]/40">
-              {/* Profile Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 bg-white rounded-xl border border-[#E6E3DE]">
-                  <span className="helper-text font-medium block text-[#6B6863]">Contact Details</span>
-                  <div className="mt-1.5 text-sm font-semibold text-[#171717] flex items-center gap-1.5 font-mono">
-                    <Phone className="w-3.5 h-3.5 text-[#807365]" />
-                    {selectedVendor.phone}
-                  </div>
-                  {selectedVendor.email && (
-                    <div className="mt-1 text-xs text-[#6B6863] flex items-center gap-1.5 truncate">
-                      <Mail className="w-3.5 h-3.5 text-[#807365] shrink-0" />
-                      <span className="truncate">{selectedVendor.email}</span>
-                    </div>
-                  )}
+          }
+          subtitle={`${selectedVendor.contactPerson} • ${selectedVendor.city}, ${selectedVendor.state || 'Maharashtra'}`}
+          footer={
+            <button
+              type="button"
+              onClick={() => setShowDetailsModal(false)}
+              className="btn-secondary"
+            >
+              Close View
+            </button>
+          }
+        >
+          <div className="space-y-6">
+            {/* Profile Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 bg-white rounded-xl border border-[#E6E3DE]">
+                <span className="helper-text font-medium block text-[#6B6863]">Contact Details</span>
+                <div className="mt-1.5 text-sm font-semibold text-[#171717] flex items-center gap-1.5 font-mono">
+                  <Phone className="w-3.5 h-3.5 text-[#807365]" />
+                  {selectedVendor.phone}
                 </div>
-
-                <div className="p-4 bg-white rounded-xl border border-[#E6E3DE]">
-                  <span className="helper-text font-medium block text-[#6B6863]">GSTIN Identification</span>
-                  <div className="mt-1.5 text-sm font-mono font-semibold text-[#171717]">
-                    {selectedVendor.gstNumber || 'Not Registered'}
-                  </div>
-                  <span className="text-[11px] text-[#A69B8D] mt-0.5 block">Job-work challan tax profile</span>
-                </div>
-
-                <div className="p-4 bg-white rounded-xl border border-[#E6E3DE]">
-                  <span className="helper-text font-medium block text-[#6B6863]">Assembly Labor Rate</span>
-                  <div className="mt-1.5 text-sm font-semibold text-[#171717] font-mono">
-                    {selectedVendor.defaultJobWorkRate > 0
-                      ? `₹${selectedVendor.defaultJobWorkRate.toFixed(2)} / unit`
-                      : 'Not fixed'}
-                  </div>
-                  <span className="text-[11px] text-[#807365] mt-0.5 block">Standard cost tracking</span>
-                </div>
-              </div>
-
-              {/* Material Balance Held by Vendor */}
-              <div className="border border-[#E6E3DE] bg-white rounded-xl p-5 shadow-xs">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-[#807365]" />
-                    <h4 className="text-sm font-semibold text-[#171717]">Material Balance Held By Vendor</h4>
-                  </div>
-                  <span className="text-xs font-semibold text-[#807365] font-mono">
-                    Total: {selectedVendor.materialBalance || 0} units
-                  </span>
-                </div>
-                <p className="helper-text text-[#6B6863] mb-3">
-                  Components issued from store for job-work that have not yet been returned as finished circuits or returned unused parts.
-                </p>
-
-                {detailsLoading ? (
-                  <div className="py-4 text-center text-xs text-[#6B6863]">Loading holding balance...</div>
-                ) : detailedVendorData?.materialHoldings?.length > 0 ? (
-                  <div className="bg-[#F7F6F3]/50 rounded-lg border border-[#E6E3DE] overflow-hidden">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-[#E8E6E2]/50 text-[#6B6863] font-medium text-xs uppercase">
-                        <tr>
-                          <th className="py-2.5 px-3">Part Code</th>
-                          <th className="py-2.5 px-3">Component Description</th>
-                          <th className="py-2.5 px-3 text-right">Qty Lying With Vendor</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E6E3DE]">
-                        {detailedVendorData.materialHoldings.map((m: any, idx: number) => (
-                          <tr key={idx}>
-                            <td className="py-2.5 px-3 font-mono font-semibold text-[#171717]">{m.partCode}</td>
-                            <td className="py-2.5 px-3 text-[#383531]">{m.name}</td>
-                            <td className="py-2.5 px-3 text-right font-mono font-bold text-[#807365]">{m.netBalance}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="py-3 text-center text-xs text-[#6B6863] bg-[#F7F6F3] rounded-lg border border-dashed border-[#E6E3DE]">
-                    No components currently lying with this vendor.
+                {selectedVendor.email && (
+                  <div className="mt-1 text-xs text-[#6B6863] flex items-center gap-1.5 truncate">
+                    <Mail className="w-3.5 h-3.5 text-[#807365] shrink-0" />
+                    <span className="truncate">{selectedVendor.email}</span>
                   </div>
                 )}
               </div>
 
-              {/* Remarks */}
-              {selectedVendor.remarks && (
-                <div className="p-4 bg-white rounded-xl border border-[#E6E3DE] text-sm">
-                  <span className="font-medium text-[#171717] block mb-0.5">Remarks / Capabilities:</span>
-                  <p className="text-[#6B6863] leading-relaxed text-xs">{selectedVendor.remarks}</p>
+              <div className="p-4 bg-white rounded-xl border border-[#E6E3DE]">
+                <span className="helper-text font-medium block text-[#6B6863]">GSTIN Identification</span>
+                <div className="mt-1.5 text-sm font-mono font-semibold text-[#171717]">
+                  {selectedVendor.gstNumber || 'Not Registered'}
+                </div>
+                <span className="text-[11px] text-[#A69B8D] mt-0.5 block">Job-work challan tax profile</span>
+              </div>
+
+              <div className="p-4 bg-white rounded-xl border border-[#E6E3DE]">
+                <span className="helper-text font-medium block text-[#6B6863]">Assembly Labor Rate</span>
+                <div className="mt-1.5 text-sm font-semibold text-[#171717] font-mono">
+                  {selectedVendor.defaultJobWorkRate > 0
+                    ? `₹${selectedVendor.defaultJobWorkRate.toFixed(2)} / unit`
+                    : 'Not fixed'}
+                </div>
+                <span className="text-[11px] text-[#807365] mt-0.5 block">Standard cost tracking</span>
+              </div>
+            </div>
+
+            {/* Material Balance Held by Vendor */}
+            <div className="border border-[#E6E3DE] bg-white rounded-xl p-5 shadow-xs">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#807365]" />
+                  <h4 className="text-sm font-semibold text-[#171717]">Material Balance Held By Vendor</h4>
+                </div>
+                <span className="text-xs font-semibold text-[#807365] font-mono">
+                  Total: {selectedVendor.materialBalance || 0} units
+                </span>
+              </div>
+              <p className="helper-text text-[#6B6863] mb-3">
+                Components issued from store for job-work that have not yet been returned as finished circuits or returned unused parts.
+              </p>
+
+              {detailsLoading ? (
+                <div className="py-4 text-center text-xs text-[#6B6863]">Loading holding balance...</div>
+              ) : detailedVendorData?.materialHoldings?.length > 0 ? (
+                <div className="bg-[#F7F6F3]/50 rounded-lg border border-[#E6E3DE] overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-[#E8E6E2]/50 text-[#6B6863] font-medium text-xs uppercase">
+                      <tr>
+                        <th className="py-2.5 px-3">Part Code</th>
+                        <th className="py-2.5 px-3">Component Description</th>
+                        <th className="py-2.5 px-3 text-right">Qty Lying With Vendor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E6E3DE]">
+                      {detailedVendorData.materialHoldings.map((m: any, idx: number) => (
+                        <tr key={idx}>
+                          <td className="py-2.5 px-3 font-mono font-semibold text-[#171717]">{m.partCode}</td>
+                          <td className="py-2.5 px-3 text-[#383531]">{m.name}</td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-[#807365]">{m.netBalance}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-3 text-center text-xs text-[#6B6863] bg-[#F7F6F3] rounded-lg border border-dashed border-[#E6E3DE]">
+                  No components currently lying with this vendor.
                 </div>
               )}
-
-              {/* Recent Movement History */}
-              <div>
-                <h4 className="text-sm font-semibold text-[#171717] mb-2.5">Recent Material Movements & Challans</h4>
-                {detailsLoading ? (
-                  <div className="text-center py-4 text-xs text-[#6B6863]">Loading ledger movements...</div>
-                ) : detailedVendorData?.recentTransactions?.length > 0 ? (
-                  <div className="enterprise-card overflow-hidden">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr>
-                          <th className="th-enterprise">Date</th>
-                          <th className="th-enterprise">Type</th>
-                          <th className="th-enterprise">Component</th>
-                          <th className="th-enterprise text-right">Qty</th>
-                          <th className="th-enterprise">Reference</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E6E3DE]/60">
-                        {detailedVendorData.recentTransactions.map((tx: any) => (
-                          <tr key={tx._id} className="tr-enterprise">
-                            <td className="td-enterprise text-[#6B6863] font-mono text-xs">
-                              {new Date(tx.createdAt).toLocaleDateString()}
-                            </td>
-                            <td className="td-enterprise">
-                              <Badge
-                                variant={tx.type === 'ISSUE_TO_VENDOR' ? 'gold' : 'success'}
-                              >
-                                {tx.type}
-                              </Badge>
-                            </td>
-                            <td className="td-enterprise font-mono font-medium text-[#171717]">{tx.componentId?.partCode || '—'}</td>
-                            <td className="td-enterprise text-right font-mono font-semibold text-[#171717]">{tx.qtyChange}</td>
-                            <td className="td-enterprise text-[#6B6863] text-xs font-mono">{tx.referenceNo || '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-xs text-[#A69B8D] italic">No job-work challans or material movements recorded yet.</p>
-                )}
-              </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 bg-white border-t border-[#E6E3DE] flex justify-end">
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="btn-secondary"
-              >
-                Close View
-              </button>
+            {/* Remarks */}
+            {selectedVendor.remarks && (
+              <div className="p-4 bg-white rounded-xl border border-[#E6E3DE] text-sm">
+                <span className="font-medium text-[#171717] block mb-0.5">Remarks / Capabilities:</span>
+                <p className="text-[#6B6863] leading-relaxed text-xs">{selectedVendor.remarks}</p>
+              </div>
+            )}
+
+            {/* Recent Movement History */}
+            <div>
+              <h4 className="text-sm font-semibold text-[#171717] mb-2.5">Recent Material Movements & Challans</h4>
+              {detailsLoading ? (
+                <div className="text-center py-4 text-xs text-[#6B6863]">Loading ledger movements...</div>
+              ) : detailedVendorData?.recentTransactions?.length > 0 ? (
+                <div className="enterprise-card overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr>
+                        <th className="th-enterprise">Date</th>
+                        <th className="th-enterprise">Type</th>
+                        <th className="th-enterprise">Component</th>
+                        <th className="th-enterprise text-right">Qty</th>
+                        <th className="th-enterprise">Reference</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E6E3DE]/60">
+                      {detailedVendorData.recentTransactions.map((tx: any) => (
+                        <tr key={tx._id} className="tr-enterprise">
+                          <td className="td-enterprise text-[#6B6863] font-mono text-xs">
+                            {new Date(tx.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="td-enterprise">
+                            <Badge
+                              variant={tx.type === 'ISSUE_TO_VENDOR' ? 'gold' : 'success'}
+                            >
+                              {tx.type}
+                            </Badge>
+                          </td>
+                          <td className="td-enterprise font-mono font-medium text-[#171717]">{tx.componentId?.partCode || '—'}</td>
+                          <td className="td-enterprise text-right font-mono font-semibold text-[#171717]">{tx.qtyChange}</td>
+                          <td className="td-enterprise text-[#6B6863] text-xs font-mono">{tx.referenceNo || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-xs text-[#A69B8D] italic">No job-work challans or material movements recorded yet.</p>
+              )}
             </div>
           </div>
-        </div>
+        </Modal>
       )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={!!vendorToDelete}
+        onClose={() => setVendorToDelete(null)}
+        onConfirm={executeDeleteVendor}
+        title="Delete Vendor"
+        description={`Are you sure you want to delete assembler '${vendorToDelete?.name}'? This action cannot be undone.`}
+        confirmText="Delete Assembler"
+        isLoading={deleteLoading}
+        variant="danger"
+      />
     </div>
   );
 };

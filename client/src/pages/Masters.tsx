@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { FolderTree, Ruler, MapPin, Plus, Trash2, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ConfirmModal } from '../components/ui/Modal';
 
 export const Masters: React.FC = () => {
   const { isStoreKeeper, isAdmin } = useAuth();
@@ -24,6 +25,13 @@ export const Masters: React.FC = () => {
   const [locName, setLocName] = useState('');
   const [locZone, setLocZone] = useState('');
   const [locDesc, setLocDesc] = useState('');
+
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    type: 'category' | 'unit' | 'location';
+    name: string;
+  } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     fetchMasters();
@@ -61,16 +69,8 @@ export const Masters: React.FC = () => {
     }
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    if (!window.confirm('Delete this category?')) return;
-    setErrorMsg('');
-    try {
-      await api.delete(`/masters/categories/${id}`);
-      setSuccessMsg('Category deleted successfully');
-      fetchMasters();
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to delete category');
-    }
+  const handleDeleteCategory = (cat: any) => {
+    setDeleteTarget({ id: cat._id, type: 'category', name: cat.name });
   };
 
   const handleAddUnit = async (e: React.FormEvent) => {
@@ -87,16 +87,8 @@ export const Masters: React.FC = () => {
     }
   };
 
-  const handleDeleteUnit = async (id: string) => {
-    if (!window.confirm('Delete this unit?')) return;
-    setErrorMsg('');
-    try {
-      await api.delete(`/masters/units/${id}`);
-      setSuccessMsg('Unit deleted successfully');
-      fetchMasters();
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to delete unit');
-    }
+  const handleDeleteUnit = (u: any) => {
+    setDeleteTarget({ id: u._id, type: 'unit', name: `${u.name} (${u.shortCode})` });
   };
 
   const handleAddLocation = async (e: React.FormEvent) => {
@@ -114,20 +106,36 @@ export const Masters: React.FC = () => {
     }
   };
 
-  const handleDeleteLocation = async (id: string) => {
-    if (!window.confirm('Delete this location?')) return;
+  const handleDeleteLocation = (l: any) => {
+    setDeleteTarget({ id: l._id, type: 'location', name: l.name });
+  };
+
+  const executeDeleteTarget = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
     setErrorMsg('');
     try {
-      await api.delete(`/masters/locations/${id}`);
-      setSuccessMsg('Location deleted successfully');
+      if (deleteTarget.type === 'category') {
+        await api.delete(`/masters/categories/${deleteTarget.id}`);
+        setSuccessMsg(`Category '${deleteTarget.name}' deleted successfully`);
+      } else if (deleteTarget.type === 'unit') {
+        await api.delete(`/masters/units/${deleteTarget.id}`);
+        setSuccessMsg(`Unit '${deleteTarget.name}' deleted successfully`);
+      } else if (deleteTarget.type === 'location') {
+        await api.delete(`/masters/locations/${deleteTarget.id}`);
+        setSuccessMsg(`Location '${deleteTarget.name}' deleted successfully`);
+      }
+      setDeleteTarget(null);
       fetchMasters();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to delete location');
+      setErrorMsg(err.response?.data?.message || `Failed to delete ${deleteTarget.type}`);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
   return (
-    <div className="space-y-4 max-w-6xl mx-auto">
+    <div className="space-y-4 w-full">
       <div className="pb-2 border-b border-slate-200">
         <h1 className="text-xl font-bold text-slate-900 tracking-tight">Master Data Management</h1>
         <p className="text-xs text-slate-500 mt-0.5">
@@ -260,7 +268,7 @@ export const Masters: React.FC = () => {
                     {isAdmin && (
                       <td className="table-compact-td text-right">
                         <button
-                          onClick={() => handleDeleteCategory(cat._id)}
+                          onClick={() => handleDeleteCategory(cat)}
                           title="Delete Category"
                           className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
                         >
@@ -330,7 +338,7 @@ export const Masters: React.FC = () => {
                     {isAdmin && (
                       <td className="table-compact-td text-right">
                         <button
-                          onClick={() => handleDeleteUnit(u._id)}
+                          onClick={() => handleDeleteUnit(u)}
                           title="Delete Unit"
                           className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
                         >
@@ -411,7 +419,7 @@ export const Masters: React.FC = () => {
                     {isAdmin && (
                       <td className="table-compact-td text-right">
                         <button
-                          onClick={() => handleDeleteLocation(l._id)}
+                          onClick={() => handleDeleteLocation(l)}
                           title="Delete Location"
                           className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
                         >
@@ -426,6 +434,18 @@ export const Masters: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={executeDeleteTarget}
+        title={`Delete ${deleteTarget?.type ? deleteTarget.type.charAt(0).toUpperCase() + deleteTarget.type.slice(1) : ''}`}
+        description={`Are you sure you want to delete ${deleteTarget?.type} '${deleteTarget?.name}'? Components referencing this may be affected.`}
+        confirmText={`Delete ${deleteTarget?.type ? deleteTarget.type.charAt(0).toUpperCase() + deleteTarget.type.slice(1) : ''}`}
+        isLoading={deleteLoading}
+        variant="danger"
+      />
     </div>
   );
 };

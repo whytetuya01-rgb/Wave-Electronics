@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Modal } from '../components/ui/Modal';
 import {
   PackageCheck,
   Plus,
@@ -188,7 +189,7 @@ export const StockInward: React.FC = () => {
 
   const handleRemoveRow = (index: number) => {
     if (items.length <= 1) {
-      alert('Stock inward must contain at least one line item.');
+      setErrorMsg('Stock inward must contain at least one line item.');
       return;
     }
     setItems(items.filter((_, i) => i !== index));
@@ -510,220 +511,216 @@ export const StockInward: React.FC = () => {
       </div>
 
       {/* ADD STOCK INWARD MODAL */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full border border-[#E6E3DE] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
-            {/* Header */}
-            <div className="px-6 py-4.5 bg-white border-b border-[#E6E3DE] flex items-center justify-between">
-              <div>
-                <h3 className="section-heading text-[#171717]">New Goods Inward Entry (GIN)</h3>
-                <p className="helper-text mt-0.5 text-[#6B6863]">
-                  Record purchased electronic parts. Directly updates store balance and creates ledger entries.
-                </p>
-              </div>
-              <button onClick={() => setShowAddModal(false)} className="btn-ghost p-1.5 rounded-[8px]">
-                <X className="w-4 h-4" />
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        size="2xl"
+        icon={<PackageCheck className="w-5 h-5 text-[#807365]" />}
+        title="New Goods Inward Entry (GIN)"
+        subtitle="Record purchased electronic parts. Directly updates store balance and creates ledger entries."
+        onSubmit={handleSubmitInward}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowAddModal(false)}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn-primary"
+            >
+              {submitting ? 'Updating Inventory...' : 'Confirm Inward & Post Stock'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-[#F7F6F3]/60 p-4.5 rounded-xl border border-[#E6E3DE]">
+            <div>
+              <label className="label-text block mb-1.5">
+                Inward Date <span className="text-[#C2413A]">*</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={inwardDate}
+                onChange={(e) => setInwardDate(e.target.value)}
+                className="input-enterprise"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="label-text block mb-1.5">
+                Supplier / Source Name <span className="text-[#C2413A]">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Mouser Electronics / DigiKey / Arrow"
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
+                className="input-enterprise"
+              />
+            </div>
+
+            <div>
+              <label className="label-text block mb-1.5">Bill / Invoice Number</label>
+              <input
+                type="text"
+                placeholder="e.g. INV-2026-9041"
+                value={billNumber}
+                onChange={(e) => setBillNumber(e.target.value)}
+                className="input-enterprise font-mono uppercase"
+              />
+            </div>
+
+            <div className="sm:col-span-4">
+              <label className="label-text block mb-1.5">Notes / Procurement Remarks</label>
+              <input
+                type="text"
+                placeholder="e.g. Lot inspection verified, tape packaging intact"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="input-enterprise"
+              />
+            </div>
+          </div>
+
+          {/* Line Items Table */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-[#171717] flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-[#807365]" />
+                Inward Component Line Items
+              </h4>
+              <button
+                type="button"
+                onClick={handleAddRow}
+                className="btn-secondary text-xs px-2.5 py-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Row</span>
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmitInward} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-[#F7F6F3]/60 p-4.5 rounded-xl border border-[#E6E3DE]">
-                <div>
-                  <label className="label-text block mb-1.5">
-                    Inward Date <span className="text-[#C2413A]">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={inwardDate}
-                    onChange={(e) => setInwardDate(e.target.value)}
-                    className="input-enterprise"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="label-text block mb-1.5">
-                    Supplier / Source Name <span className="text-[#C2413A]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Mouser Electronics / DigiKey / Arrow"
-                    value={supplierName}
-                    onChange={(e) => setSupplierName(e.target.value)}
-                    className="input-enterprise"
-                  />
-                </div>
-
-                <div>
-                  <label className="label-text block mb-1.5">Bill / Invoice Number</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. INV-2026-9041"
-                    value={billNumber}
-                    onChange={(e) => setBillNumber(e.target.value)}
-                    className="input-enterprise font-mono uppercase"
-                  />
-                </div>
-
-                <div className="sm:col-span-4">
-                  <label className="label-text block mb-1.5">Notes / Procurement Remarks</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Lot inspection verified, tape packaging intact"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="input-enterprise"
-                  />
-                </div>
-              </div>
-
-              {/* Line Items Table */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-[#171717] flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-[#807365]" />
-                    Inward Component Line Items
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={handleAddRow}
-                    className="btn-secondary text-xs px-2.5 py-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Row</span>
-                  </button>
-                </div>
-
-                <div className="border border-[#E6E3DE] rounded-xl overflow-hidden shadow-xs">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-[#F7F6F3] text-[11px] font-semibold uppercase text-[#6B6863] border-b border-[#E6E3DE]">
-                      <tr>
-                        <th className="py-2.5 px-3 w-5/12">Select Component</th>
-                        <th className="py-2.5 px-3 w-2/12 text-right">Inward Qty</th>
-                        <th className="py-2.5 px-3 w-2/12 text-right">Unit Rate (₹)</th>
-                        <th className="py-2.5 px-3 w-2/12 text-right">Amount (₹)</th>
-                        <th className="py-2.5 px-3 w-1/12 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#E6E3DE]/60">
-                      {items.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-[#FAF9F7]">
-                          <td className="py-2 px-3">
-                            <select
-                              required
-                              value={row.componentId}
-                              onChange={(e) => handleComponentSelect(idx, e.target.value)}
-                              className="select-enterprise text-xs"
-                            >
-                              <option value="">-- Choose Component Part --</option>
-                              {componentsList.map((c) => (
-                                <option key={c._id} value={c._id}>
-                                  {c.partCode} — {c.name} (Stock: {c.inStoreStock})
-                                </option>
-                              ))}
-                            </select>
-                            {row.name && (
-                              <div className="text-[11px] text-[#A69B8D] mt-0.5 truncate">{row.name}</div>
-                            )}
-                          </td>
-                          <td className="py-2 px-3">
-                            <input
-                              type="number"
-                              required
-                              min="1"
-                              value={row.qty}
-                              onChange={(e) => handleItemQtyChange(idx, parseInt(e.target.value) || 0)}
-                              className="input-enterprise text-right font-mono"
-                            />
-                          </td>
-                          <td className="py-2 px-3">
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              required
-                              value={row.unitRate}
-                              onChange={(e) => handleItemRateChange(idx, parseFloat(e.target.value) || 0)}
-                              className="input-enterprise text-right font-mono"
-                            />
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-bold text-[#171717]">
-                            ₹{row.totalAmount.toFixed(2)}
-                          </td>
-                          <td className="py-2 px-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveRow(idx)}
-                              className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
-                              title="Delete row"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-[#F7F6F3] border-t border-[#E6E3DE] font-semibold text-xs">
-                      <tr>
-                        <td className="py-2.5 px-3 text-[#6B6863]">Total: {items.length} Line Items</td>
-                        <td className="py-2.5 px-3 text-right font-mono font-bold text-[#171717]">
-                          {grandTotalQty.toLocaleString()} units
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-[#6B6863]">Grand Total:</td>
-                        <td className="py-2.5 px-3 text-right font-mono font-bold text-[#171717] text-sm">
-                          ₹{grandTotalAmount.toFixed(2)}
-                        </td>
-                        <td />
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-
-              {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#E6E3DE]">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn-primary"
-                >
-                  {submitting ? 'Updating Inventory...' : 'Confirm Inward & Post Stock'}
-                </button>
-              </div>
-            </form>
+            <div className="border border-[#E6E3DE] rounded-xl overflow-hidden shadow-xs">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-[#F7F6F3] text-[11px] font-semibold uppercase text-[#6B6863] border-b border-[#E6E3DE]">
+                  <tr>
+                    <th className="py-2.5 px-3 w-5/12">Select Component</th>
+                    <th className="py-2.5 px-3 w-2/12 text-right">Inward Qty</th>
+                    <th className="py-2.5 px-3 w-2/12 text-right">Unit Rate (₹)</th>
+                    <th className="py-2.5 px-3 w-2/12 text-right">Amount (₹)</th>
+                    <th className="py-2.5 px-3 w-1/12 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E6E3DE]/60">
+                  {items.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-[#FAF9F7]">
+                      <td className="py-2 px-3">
+                        <select
+                          required
+                          value={row.componentId}
+                          onChange={(e) => handleComponentSelect(idx, e.target.value)}
+                          className="select-enterprise text-xs"
+                        >
+                          <option value="">-- Choose Component Part --</option>
+                          {componentsList.map((c) => (
+                            <option key={c._id} value={c._id}>
+                              {c.partCode} — {c.name} (Stock: {c.inStoreStock})
+                            </option>
+                          ))}
+                        </select>
+                        {row.name && (
+                          <div className="text-[11px] text-[#A69B8D] mt-0.5 truncate">{row.name}</div>
+                        )}
+                      </td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          value={row.qty}
+                          onChange={(e) => handleItemQtyChange(idx, parseInt(e.target.value) || 0)}
+                          className="input-enterprise text-right font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          required
+                          value={row.unitRate}
+                          onChange={(e) => handleItemRateChange(idx, parseFloat(e.target.value) || 0)}
+                          className="input-enterprise text-right font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono font-bold text-[#171717]">
+                        ₹{row.totalAmount.toFixed(2)}
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRow(idx)}
+                          className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
+                          title="Delete row"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-[#F7F6F3] border-t border-[#E6E3DE] font-semibold text-xs">
+                  <tr>
+                    <td className="py-2.5 px-3 text-[#6B6863]">Total: {items.length} Line Items</td>
+                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#171717]">
+                      {grandTotalQty.toLocaleString()} units
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-[#6B6863]">Grand Total:</td>
+                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#171717] text-sm">
+                      ₹{grandTotalAmount.toFixed(2)}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </div>
-      )}
+      </Modal>
 
       {/* PRINTABLE GOODS INWARD NOTE (GIN) MODAL */}
-      {showSlipModal && selectedInward && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full border border-[#E6E3DE] overflow-hidden my-6 animate-in fade-in zoom-in-95 duration-150">
-            {/* Action Bar (Hidden during print) */}
-            <div className="px-6 py-3.5 bg-[#141414] text-white flex items-center justify-between print:hidden border-b border-[#252525]">
-              <span className="text-xs font-medium text-[#E8E6E2]">Goods Inward Voucher View</span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handlePrintSlip}
-                  className="btn-primary bg-white text-[#141414] hover:bg-[#F7F6F3] text-xs px-3 py-1.5"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print Voucher</span>
-                </button>
-                <button onClick={() => setShowSlipModal(false)} className="btn-ghost text-[#A69B8D] hover:text-white p-1">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+      {selectedInward && (
+        <Modal
+          isOpen={showSlipModal}
+          onClose={() => setShowSlipModal(false)}
+          size="xl"
+          className="print:p-0 print:border-none print:shadow-none"
+          bodyClassName="p-0"
+        headerBanner={
+          <div className="px-6 py-3.5 bg-[#141414] text-white flex items-center justify-between print:hidden border-b border-[#252525]">
+            <span className="text-xs font-medium text-[#E8E6E2]">Goods Inward Voucher View</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrintSlip}
+                className="btn-primary bg-white text-[#141414] hover:bg-[#F7F6F3] text-xs px-3 py-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Voucher</span>
+              </button>
+              <button onClick={() => setShowSlipModal(false)} className="btn-ghost text-[#A69B8D] hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
             </div>
+          </div>
+        }
+      >
 
             {/* Printable Voucher Paper */}
             <div className="p-8 font-sans text-[#171717] bg-white" id="printable-voucher">
@@ -835,8 +832,7 @@ export const StockInward: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

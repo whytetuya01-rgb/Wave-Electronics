@@ -266,21 +266,7 @@ export const AppLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
-        {/* Pure White Top Header */}
-        <header className="h-14 bg-white border-b border-[#
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        E6E3DE] px-4 sm:px-6 lg:px-8 flex items-center justify-between z-10 flex-shrink-0">
+        <header className="h-14 bg-white border-b border-[#E6E3DE] px-4 sm:px-6 lg:px-8 flex items-center justify-between z-10 flex-shrink-0">
           {/* Left: Mobile hamburger / Desktop collapse toggle & Breadcrumbs */}
           <div className="flex items-center gap-3">
             {/* Mobile menu toggle */}

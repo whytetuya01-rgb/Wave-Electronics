@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { Modal } from '../components/ui/Modal';
 import {
   Cpu,
   Plus,
@@ -231,7 +232,7 @@ export const ComponentsList: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto">
+    <div className="space-y-4 w-full">
       {/* Top Header & Primary Action (Linear Style) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
@@ -446,433 +447,437 @@ export const ComponentsList: React.FC = () => {
         )}
       </div>
 
-      {/* ================= SHADCN-STYLE MODAL: ADD COMPONENT ================= */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-xl w-full p-6 max-h-[92vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Add New Component</h3>
-                <p className="text-xs text-slate-500">Configure part details and initialize opening stock ledger.</p>
-              </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+      {/* ================= MODAL: ADD COMPONENT ================= */}
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        size="xl"
+        icon={<Cpu className="w-5 h-5 text-[#807365]" />}
+        title="Add New Component"
+        subtitle="Configure part details and initialize opening stock ledger."
+        onSubmit={handleCreateComponent}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowAddModal(false)}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn-primary"
+            >
+              {submitting ? 'Saving...' : 'Save Component'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {formError && (
+            <div className="p-3 rounded-lg bg-[#C2413A]/10 border border-[#C2413A]/20 text-[#C2413A] text-xs">
+              {formError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="label-text block mb-1.5">
+                Part Code <span className="text-[#C2413A]">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. RES-10K-0805"
+                value={formData.partCode}
+                onChange={(e) => setFormData({ ...formData, partCode: e.target.value.toUpperCase() })}
+                className="input-enterprise uppercase font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="label-text block mb-1.5">
+                Component Name <span className="text-[#C2413A]">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Resistor SMD 10K 1%"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="input-enterprise"
+              />
+            </div>
+
+            <div>
+              <label className="label-text block mb-1.5">
+                Category <span className="text-[#C2413A]">*</span>
+              </label>
+              <select
+                required
+                value={formData.categoryId}
+                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                className="select-enterprise"
               >
-                <X className="w-4 h-4" />
+                <option value="">Select Category</option>
+                {categories.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label-text block mb-1.5">
+                Unit of Measurement <span className="text-[#C2413A]">*</span>
+              </label>
+              <select
+                required
+                value={formData.unitId}
+                onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
+                className="select-enterprise"
+              >
+                <option value="">Select Unit</option>
+                {units.map((u) => (
+                  <option key={u._id} value={u._id}>
+                    {u.name} ({u.shortCode})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label-text block mb-1.5">
+                Storage Location
+              </label>
+              <select
+                value={formData.locationId}
+                onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+                className="select-enterprise"
+              >
+                <option value="">Select Location</option>
+                {locations.map((l) => (
+                  <option key={l._id} value={l._id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label-text block mb-1.5">
+                Package / Footprint
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. SMD 0805, DIP-8"
+                value={formData.package}
+                onChange={(e) => setFormData({ ...formData, package: e.target.value })}
+                className="input-enterprise font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="label-text block mb-1.5">
+                Opening Stock (Initial Store Qty)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={formData.openingStock}
+                onChange={(e) => setFormData({ ...formData, openingStock: Math.max(0, parseInt(e.target.value) || 0) })}
+                className="input-enterprise font-mono font-bold"
+              />
+              <span className="helper-text block mt-1">Auto-recorded to stock ledger</span>
+            </div>
+
+            <div>
+              <label className="label-text block mb-1.5">
+                Minimum Safety Stock
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={formData.minStock}
+                onChange={(e) => setFormData({ ...formData, minStock: Math.max(0, parseInt(e.target.value) || 0) })}
+                className="input-enterprise font-mono"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="label-text block mb-1.5">
+                Unit Purchase Rate (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.ratePerUnit}
+                onChange={(e) => setFormData({ ...formData, ratePerUnit: Math.max(0, parseFloat(e.target.value) || 0) })}
+                className="input-enterprise font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Technical Specifications */}
+          <div className="pt-3 border-t border-[#E6E3DE]">
+            <label className="label-text block mb-1.5">
+              Technical Specifications (Optional)
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                placeholder="Parameter (e.g. Voltage, Tolerance)"
+                value={formData.specKey}
+                onChange={(e) => setFormData({ ...formData, specKey: e.target.value })}
+                className="input-enterprise flex-1"
+              />
+              <input
+                type="text"
+                placeholder="Value (e.g. 50V, 1%)"
+                value={formData.specValue}
+                onChange={(e) => setFormData({ ...formData, specValue: e.target.value })}
+                className="input-enterprise flex-1"
+              />
+              <button
+                type="button"
+                onClick={handleAddSpec}
+                className="btn-secondary h-9 py-1 px-3 text-xs"
+              >
+                Add
               </button>
             </div>
 
-            {formError && (
-              <div className="mt-3 p-2.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs">
-                {formError}
+            {Object.keys(specList).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 p-2.5 bg-[#F7F6F3] rounded-[9px] border border-[#E6E3DE]">
+                {Object.entries(specList).map(([k, v]) => (
+                  <span
+                    key={k}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#E6E3DE] rounded-[6px] text-xs text-[#171717]"
+                  >
+                    <strong className="text-[#141414]">{k}:</strong> {v}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = { ...specList };
+                        delete updated[k];
+                        setSpecList(updated);
+                      }}
+                      className="text-[#C2413A] hover:text-[#9B2C2C] ml-1 font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
               </div>
             )}
-
-            <form onSubmit={handleCreateComponent} className="mt-4 space-y-3.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Part Code <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. RES-10K-0805"
-                    value={formData.partCode}
-                    onChange={(e) => setFormData({ ...formData, partCode: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-1.5 text-xs uppercase font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Component Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Resistor SMD 10K 1%"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.categoryId}
-                    onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Unit of Measurement <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.unitId}
-                    onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                  >
-                    <option value="">Select Unit</option>
-                    {units.map((u) => (
-                      <option key={u._id} value={u._id}>
-                        {u.name} ({u.shortCode})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Storage Location
-                  </label>
-                  <select
-                    value={formData.locationId}
-                    onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                  >
-                    <option value="">Select Location</option>
-                    {locations.map((l) => (
-                      <option key={l._id} value={l._id}>
-                        {l.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Package / Footprint
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. SMD 0805, DIP-8"
-                    value={formData.package}
-                    onChange={(e) => setFormData({ ...formData, package: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Opening Stock (Initial Store Qty)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.openingStock}
-                    onChange={(e) => setFormData({ ...formData, openingStock: Math.max(0, parseInt(e.target.value) || 0) })}
-                    className="w-full px-3 py-1.5 text-xs font-mono font-bold bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                  />
-                  <span className="text-[10px] text-slate-500">Auto-recorded to stock ledger</span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Minimum Safety Stock
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.minStock}
-                    onChange={(e) => setFormData({ ...formData, minStock: Math.max(0, parseInt(e.target.value) || 0) })}
-                    className="w-full px-3 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Unit Purchase Rate (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.ratePerUnit}
-                    onChange={(e) => setFormData({ ...formData, ratePerUnit: Math.max(0, parseFloat(e.target.value) || 0) })}
-                    className="w-full px-3 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                  />
-                </div>
-              </div>
-
-              {/* Technical Specifications (Optional) */}
-              <div className="pt-2 border-t border-slate-100">
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Technical Specifications (Optional)
-                </label>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    placeholder="Parameter (e.g. Voltage, Tolerance)"
-                    value={formData.specKey}
-                    onChange={(e) => setFormData({ ...formData, specKey: e.target.value })}
-                    className="flex-1 px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-md"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Value (e.g. 50V, 1%)"
-                    value={formData.specValue}
-                    onChange={(e) => setFormData({ ...formData, specValue: e.target.value })}
-                    className="flex-1 px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-md"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddSpec}
-                    className="btn-linear-secondary py-1 text-xs"
-                  >
-                    Add
-                  </button>
-                </div>
-
-                {Object.keys(specList).length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 rounded-md border border-slate-200">
-                    {Object.entries(specList).map(([k, v]) => (
-                      <span
-                        key={k}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-slate-200 rounded text-xs text-slate-700"
-                      >
-                        <strong>{k}:</strong> {v}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = { ...specList };
-                            delete updated[k];
-                            setSpecList(updated);
-                          }}
-                          className="text-red-500 hover:text-red-700 ml-0.5"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="btn-linear-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn-linear-primary"
-                >
-                  {submitting ? 'Saving...' : 'Save Component'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
-      )}
+      </Modal>
 
       {/* ================= MODAL: STOCK ADJUSTMENT ================= */}
-      {showAdjustModal && activeComponent && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-sm w-full p-5">
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">Physical Stock Correction</h3>
+      {activeComponent && (
+        <Modal
+          isOpen={showAdjustModal}
+          onClose={() => setShowAdjustModal(false)}
+          size="md"
+          icon={<Sliders className="w-5 h-5 text-[#807365]" />}
+          title="Physical Stock Correction"
+          subtitle={`Adjust recorded inventory for ${activeComponent.partCode}`}
+          onSubmit={handleAdjustStock}
+          footer={
+            <>
               <button
+                type="button"
                 onClick={() => setShowAdjustModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+                className="btn-secondary"
               >
-                <X className="w-4 h-4" />
+                Cancel
               </button>
-            </div>
-
-            <div className="mt-3 p-2.5 bg-slate-50 rounded-md border border-slate-200 text-xs">
-              <p className="font-mono font-bold text-[#4F46E5]">{activeComponent.partCode}</p>
-              <p className="text-slate-600 truncate">{activeComponent.name}</p>
-              <div className="mt-2 pt-1.5 border-t border-slate-200 flex justify-between font-mono text-[11px]">
-                <span>In Store: <strong>{activeComponent.inStoreStock}</strong></span>
-                <span>Reserved: <strong className="text-amber-600">{activeComponent.reservedStock}</strong></span>
+              <button
+                type="submit"
+                disabled={submitting || adjustData.qtyChange === 0}
+                className="btn-primary"
+              >
+                {submitting ? 'Saving...' : 'Commit to Ledger'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="p-3 bg-[#F7F6F3] rounded-[9px] border border-[#E6E3DE] text-xs">
+              <div className="flex items-center justify-between">
+                <p className="font-mono font-bold text-[#141414]">{activeComponent.partCode}</p>
+                <span className="text-[#6B6863]">{activeComponent.categoryId?.name}</span>
+              </div>
+              <p className="text-[#6B6863] truncate mt-0.5">{activeComponent.name}</p>
+              <div className="mt-2.5 pt-2 border-t border-[#E6E3DE] flex justify-between font-mono text-xs">
+                <span>In Store: <strong className="text-[#141414]">{activeComponent.inStoreStock}</strong></span>
+                <span>Reserved: <strong className="text-[#D97706]">{activeComponent.reservedStock}</strong></span>
+                <span>Available: <strong className="text-[#168060]">{activeComponent.availableStock}</strong></span>
               </div>
             </div>
 
             {formError && (
-              <div className="mt-2.5 p-2 rounded bg-red-50 border border-red-200 text-red-700 text-xs">
+              <div className="p-2.5 rounded-lg bg-[#C2413A]/10 border border-[#C2413A]/20 text-[#C2413A] text-xs">
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleAdjustStock} className="mt-3 space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Quantity Adjustment (+ Add, - Deduct)
-                </label>
-                <input
-                  type="number"
-                  required
-                  placeholder="e.g. +50 or -10"
-                  value={adjustData.qtyChange || ''}
-                  onChange={(e) => setAdjustData({ ...adjustData, qtyChange: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-1.5 text-xs font-mono font-bold bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                />
-              </div>
+            <div>
+              <label className="label-text block mb-1.5">
+                Quantity Adjustment (+ Add, - Deduct) <span className="text-[#C2413A]">*</span>
+              </label>
+              <input
+                type="number"
+                required
+                placeholder="e.g. +50 or -10"
+                value={adjustData.qtyChange || ''}
+                onChange={(e) => setAdjustData({ ...adjustData, qtyChange: parseInt(e.target.value) || 0 })}
+                className="input-enterprise font-mono font-bold"
+              />
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Mandatory Audit Reason
-                </label>
-                <select
-                  required
-                  value={adjustData.reason}
-                  onChange={(e) => setAdjustData({ ...adjustData, reason: e.target.value })}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                >
-                  <option value="count_correction">Physical Count Correction</option>
-                  <option value="damage">Damaged in Store</option>
-                  <option value="lost">Lost / Misplaced</option>
-                  <option value="other">Administrative Audit</option>
-                </select>
-              </div>
+            <div>
+              <label className="label-text block mb-1.5">
+                Mandatory Audit Reason <span className="text-[#C2413A]">*</span>
+              </label>
+              <select
+                required
+                value={adjustData.reason}
+                onChange={(e) => setAdjustData({ ...adjustData, reason: e.target.value })}
+                className="select-enterprise"
+              >
+                <option value="count_correction">Physical Count Correction</option>
+                <option value="damage">Damaged in Store</option>
+                <option value="lost">Lost / Misplaced</option>
+                <option value="other">Administrative Audit</option>
+              </select>
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Remarks / Notes
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Notes for ledger..."
-                  value={adjustData.notes}
-                  onChange={(e) => setAdjustData({ ...adjustData, notes: e.target.value })}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-                ></textarea>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAdjustModal(false)}
-                  className="btn-linear-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || adjustData.qtyChange === 0}
-                  className="btn-linear-primary"
-                >
-                  {submitting ? 'Saving...' : 'Commit to Ledger'}
-                </button>
-              </div>
-            </form>
+            <div>
+              <label className="label-text block mb-1.5">
+                Remarks / Notes
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Notes for ledger..."
+                value={adjustData.notes}
+                onChange={(e) => setAdjustData({ ...adjustData, notes: e.target.value })}
+                className="w-full px-3 py-2 rounded-[9px] border border-[#E6E3DE] text-sm focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414] transition-all"
+              />
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ================= MODAL: COMPONENT DETAILS & STOCK LEDGER ================= */}
-      {showDetailsModal && activeComponent && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-2xl w-full p-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm font-bold text-[#4F46E5]">
-                    {activeComponent.partCode}
-                  </span>
-                  <span className="badge-status badge-status-neutral text-[10px]">
-                    {activeComponent.categoryId?.name}
-                  </span>
-                </div>
-                <h3 className="text-xs font-semibold text-slate-800 mt-0.5">{activeComponent.name}</h3>
-              </div>
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {activeComponent && (
+        <Modal
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          size="2xl"
+          icon={<Eye className="w-5 h-5 text-[#807365]" />}
+          title={
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-base font-bold text-white">
+                {activeComponent.partCode}
+              </span>
+              <span className="badge-status badge-status-neutral text-[10px]">
+                {activeComponent.categoryId?.name}
+              </span>
             </div>
-
+          }
+          subtitle={activeComponent.name}
+          footer={
+            <button
+              type="button"
+              onClick={() => setShowDetailsModal(false)}
+              className="btn-secondary"
+            >
+              Close View
+            </button>
+          }
+        >
+          <div className="space-y-6">
             {/* Odoo-Style 4-Way Inventory Position */}
-            <div className="grid grid-cols-4 gap-2.5 my-3.5">
-              <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50">
-                <p className="text-[10px] font-semibold text-slate-500 uppercase">In Store</p>
-                <p className="text-lg font-bold font-mono text-slate-900 mt-0.5">{activeComponent.inStoreStock}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-xl border border-[#E6E3DE] bg-white">
+                <p className="text-[11px] font-medium text-[#6B6863] uppercase tracking-wider">In Store</p>
+                <p className="text-xl font-bold font-mono text-[#141414] mt-1">{activeComponent.inStoreStock}</p>
               </div>
-              <div className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/50">
-                <p className="text-[10px] font-semibold text-[#D97706] uppercase">Reserved</p>
-                <p className="text-lg font-bold font-mono text-[#D97706] mt-0.5">{activeComponent.reservedStock}</p>
+              <div className="p-3.5 rounded-xl border border-[#D97706]/30 bg-[#FFFBEB]">
+                <p className="text-[11px] font-medium text-[#D97706] uppercase tracking-wider">Reserved</p>
+                <p className="text-xl font-bold font-mono text-[#D97706] mt-1">{activeComponent.reservedStock}</p>
               </div>
-              <div className="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/50">
-                <p className="text-[10px] font-semibold text-[#059669] uppercase">Available</p>
-                <p className="text-lg font-bold font-mono text-[#059669] mt-0.5">{activeComponent.availableStock}</p>
+              <div className="p-3.5 rounded-xl border border-[#168060]/30 bg-[#F0FDF4]">
+                <p className="text-[11px] font-medium text-[#168060] uppercase tracking-wider">Available</p>
+                <p className="text-xl font-bold font-mono text-[#168060] mt-1">{activeComponent.availableStock}</p>
               </div>
-              <div className="p-2.5 rounded-lg border border-indigo-200 bg-indigo-50/50">
-                <p className="text-[10px] font-semibold text-[#4F46E5] uppercase">With Vendor</p>
-                <p className="text-lg font-bold font-mono text-[#4F46E5] mt-0.5">{activeComponent.withVendorStock}</p>
+              <div className="p-3.5 rounded-xl border border-[#807365]/30 bg-[#F7F6F3]">
+                <p className="text-[11px] font-medium text-[#807365] uppercase tracking-wider">With Vendor</p>
+                <p className="text-xl font-bold font-mono text-[#807365] mt-1">{activeComponent.withVendorStock}</p>
               </div>
             </div>
 
             {/* Immutable Stock Movement Ledger Audit */}
-            <div className="mt-4">
-              <div className="flex items-center gap-1.5 mb-2">
-                <History className="w-3.5 h-3.5 text-[#4F46E5]" />
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <History className="w-4 h-4 text-[#807365]" />
+                <h4 className="text-sm font-semibold text-[#171717] tracking-tight">
                   Immutable Movement Ledger (Audit Trail)
                 </h4>
               </div>
 
-              <div className="rounded-lg border border-slate-200 overflow-hidden">
-                <table className="min-w-full divide-y divide-slate-200 text-xs">
-                  <thead className="bg-slate-50">
+              <div className="enterprise-card overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead>
                     <tr>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600">Timestamp</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600">Action Type</th>
-                      <th className="px-3 py-2 text-right font-semibold text-slate-600">Delta</th>
-                      <th className="px-3 py-2 text-right font-semibold text-slate-600">Store Balance</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600">Reference / Notes</th>
+                      <th className="th-enterprise">Timestamp</th>
+                      <th className="th-enterprise">Action Type</th>
+                      <th className="th-enterprise text-right">Delta</th>
+                      <th className="th-enterprise text-right">Store Balance</th>
+                      <th className="th-enterprise">Reference / Notes</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white font-mono">
+                  <tbody className="divide-y divide-[#E6E3DE]/60 font-mono">
                     {componentLedger.map((row) => (
-                      <tr key={row._id} className="hover:bg-slate-50">
-                        <td className="px-3 py-2 text-slate-500 text-[11px]">
+                      <tr key={row._id} className="tr-enterprise">
+                        <td className="td-enterprise text-[#6B6863] text-xs">
                           {new Date(row.createdAt).toLocaleDateString()} {new Date(row.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="td-enterprise font-sans">
                           <span className="badge-status badge-status-indigo text-[10px]">
                             {row.type}
                           </span>
                         </td>
-                        <td className={`px-3 py-2 text-right font-bold ${row.qtyChange >= 0 ? 'text-[#059669]' : 'text-[#DC2626]'}`}>
+                        <td className={`td-enterprise text-right font-bold ${row.qtyChange >= 0 ? 'text-[#168060]' : 'text-[#C2413A]'}`}>
                           {row.qtyChange >= 0 ? `+${row.qtyChange}` : row.qtyChange}
                         </td>
-                        <td className="px-3 py-2 text-right font-bold text-slate-900">
+                        <td className="td-enterprise text-right font-bold text-[#171717]">
                           {row.balanceInStoreAfter}
                         </td>
-                        <td className="px-3 py-2 text-slate-600 font-sans text-xs italic">
-                          {row.notes || row.adjustmentReason || '-'}
+                        <td className="td-enterprise text-[#6B6863] font-sans text-xs italic">
+                          {row.notes || row.adjustmentReason || '—'}
                         </td>
                       </tr>
                     ))}
+                    {componentLedger.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-xs text-[#A69B8D] italic font-sans">
+                          No ledger transactions recorded for this component yet.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

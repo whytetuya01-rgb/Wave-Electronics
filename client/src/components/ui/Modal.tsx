@@ -24,6 +24,7 @@ export interface ModalProps {
   footer?: React.ReactNode;
   headerAction?: React.ReactNode;
   headerBanner?: React.ReactNode;
+  darkHeader?: boolean;
   closeOnBackdropClick?: boolean;
   closeOnEsc?: boolean;
   className?: string;
@@ -46,6 +47,7 @@ export const Modal: React.FC<ModalProps> & {
   footer,
   headerAction,
   headerBanner,
+  darkHeader = true,
   closeOnBackdropClick = true,
   closeOnEsc = true,
   className = '',
@@ -120,7 +122,7 @@ export const Modal: React.FC<ModalProps> & {
   const sizeClass = SIZE_CLASSES[size] || SIZE_CLASSES.lg;
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-hidden select-none">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-hidden select-none">
       {/* Elegant Dark Charcoal Translucent Backdrop (rgba(15,15,15,0.45) + 3px blur) */}
       <div
         className="fixed inset-0 modal-overlay-bg modal-backdrop-animate cursor-pointer"
@@ -134,34 +136,64 @@ export const Modal: React.FC<ModalProps> & {
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className={`relative bg-white rounded-2xl shadow-[0_20px_50px_rgba(20,20,20,0.18)] border border-[#E6E3DE] w-full ${sizeClass} flex flex-col max-h-[90dvh] sm:max-h-[90vh] overflow-hidden modal-dialog-animate z-10 outline-none ${className}`}
+        className={`relative bg-white rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border border-[#E6E3DE] w-full ${sizeClass} flex flex-col max-h-[90dvh] sm:max-h-[90vh] overflow-hidden modal-dialog-animate z-10 outline-none ${className}`}
       >
-        {/* Optional Custom Header Banner (e.g., dark themed headers for details) */}
+        {/* Optional Custom Header Banner (e.g., custom voucher view) */}
         {headerBanner}
 
-        {/* Standard Modal Header (if title is provided and no custom banner) */}
+        {/* Standard Modal Header (Linear / Attio signature deep dark styling by default) */}
         {title && !headerBanner && (
-          <div className="px-6 py-4.5 bg-white border-b border-[#E6E3DE] flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3">
+          <div
+            className={`px-6 sm:px-8 py-5 sm:py-6 flex items-start justify-between shrink-0 border-b ${
+              darkHeader
+                ? 'bg-[#141414] text-white border-[#252525]'
+                : 'bg-white text-[#171717] border-[#E6E3DE]'
+            }`}
+          >
+            <div className="flex items-start gap-4 sm:gap-4.5 flex-1 min-w-0 pr-4">
               {icon && (
-                <div className="w-10 h-10 rounded-[10px] bg-[#F7F6F3] border border-[#E6E3DE] flex items-center justify-center text-[#807365] shrink-0">
+                <div
+                  className={`w-11 h-11 rounded-[12px] flex items-center justify-center shrink-0 border mt-0.5 ${
+                    darkHeader
+                      ? 'bg-[#1C1C1C] border-[#303030] text-[#A69B8D] shadow-xs [&_svg]:text-[#A69B8D]'
+                      : 'bg-[#F7F6F3] border-[#E6E3DE] text-[#807365]'
+                  }`}
+                >
                   {icon}
                 </div>
               )}
-              <div>
-                <h3 className="section-heading text-[#171717]">{title}</h3>
-                {subtitle && <p className="helper-text mt-0.5 text-[#6B6863]">{subtitle}</p>}
+              <div className="flex-1 min-w-0">
+                <h3
+                  className={`text-base sm:text-lg font-semibold tracking-tight leading-snug break-words ${
+                    darkHeader ? 'text-white' : 'text-[#171717]'
+                  }`}
+                >
+                  {title}
+                </h3>
+                {subtitle && (
+                  <p
+                    className={`text-xs sm:text-[13px] mt-1.5 sm:mt-2 leading-relaxed max-w-2xl ${
+                      darkHeader ? 'text-[#A69B8D]' : 'text-[#6B6863]'
+                    }`}
+                  >
+                    {subtitle}
+                  </p>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0 -mr-1 -mt-0.5">
               {headerAction}
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-[8px] text-[#6B6863] hover:text-[#171717] hover:bg-[#F7F6F3] transition-colors duration-180"
+                className={`p-2 rounded-[8px] transition-colors duration-180 ${
+                  darkHeader
+                    ? 'text-[#A69B8D] hover:text-white hover:bg-[#252525]'
+                    : 'text-[#6B6863] hover:text-[#171717] hover:bg-[#F7F6F3]'
+                }`}
                 aria-label="Close dialog"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -170,24 +202,24 @@ export const Modal: React.FC<ModalProps> & {
         {/* Content Area: Wrapped in Form if onSubmit is specified */}
         {onSubmit ? (
           <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div className={`flex-1 min-h-0 overflow-y-auto px-6 py-5 select-text ${bodyClassName}`}>
+            <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6 select-text ${bodyClassName}`}>
               {children}
             </div>
 
             {footer && (
-              <div className="px-6 py-4 bg-[#FAF9F7] border-t border-[#E6E3DE] flex items-center justify-end gap-2.5 shrink-0">
+              <div className="px-6 sm:px-8 py-4.5 bg-[#FAF9F7] border-t border-[#E6E3DE] flex items-center justify-end gap-3 shrink-0">
                 {footer}
               </div>
             )}
           </form>
         ) : (
           <>
-            <div className={`flex-1 min-h-0 overflow-y-auto px-6 py-5 select-text ${bodyClassName}`}>
+            <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6 select-text ${bodyClassName}`}>
               {children}
             </div>
 
             {footer && (
-              <div className="px-6 py-4 bg-[#FAF9F7] border-t border-[#E6E3DE] flex items-center justify-end gap-2.5 shrink-0">
+              <div className="px-6 sm:px-8 py-4.5 bg-[#FAF9F7] border-t border-[#E6E3DE] flex items-center justify-end gap-3 shrink-0">
                 {footer}
               </div>
             )}
@@ -210,48 +242,48 @@ export const ModalHeader: React.FC<{
   badge?: React.ReactNode;
   action?: React.ReactNode;
   className?: string;
-}> = ({ title, subtitle, onClose, dark = false, icon, badge, action, className = '' }) => (
+}> = ({ title, subtitle, onClose, dark = true, icon, badge, action, className = '' }) => (
   <div
-    className={`px-6 py-4.5 flex items-center justify-between shrink-0 border-b ${
+    className={`px-6 sm:px-8 py-5 sm:py-6 flex items-start justify-between shrink-0 border-b ${
       dark
         ? 'bg-[#141414] text-white border-[#252525]'
         : 'bg-white text-[#171717] border-[#E6E3DE]'
     } ${className}`}
   >
-    <div className="flex items-center gap-3">
+    <div className="flex items-start gap-4 sm:gap-4.5 flex-1 min-w-0 pr-4">
       {icon && (
         <div
-          className={`w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0 ${
-            dark ? 'bg-[#1C1C1C] border border-[#303030] text-[#A69B8D]' : 'bg-[#F7F6F3] border border-[#E6E3DE] text-[#807365]'
+          className={`w-11 h-11 rounded-[12px] flex items-center justify-center shrink-0 border mt-0.5 ${
+            dark ? 'bg-[#1C1C1C] border border-[#303030] text-[#A69B8D] [&_svg]:text-[#A69B8D]' : 'bg-[#F7F6F3] border border-[#E6E3DE] text-[#807365]'
           }`}
         >
           {React.isValidElement(icon) ? icon : typeof icon === 'function' ? React.createElement(icon, { className: 'w-5 h-5' }) : null}
         </div>
       )}
-      <div>
-        <div className="flex items-center gap-2">
-          <h3 className={`text-base font-semibold tracking-tight ${dark ? 'text-white' : 'text-[#171717]'}`}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <h3 className={`text-base sm:text-lg font-semibold tracking-tight leading-snug ${dark ? 'text-white' : 'text-[#171717]'}`}>
             {title}
           </h3>
           {badge}
         </div>
         {subtitle && (
-          <p className={`text-xs mt-0.5 ${dark ? 'text-[#A69B8D]' : 'text-[#6B6863]'}`}>{subtitle}</p>
+          <p className={`text-xs sm:text-[13px] mt-1.5 sm:mt-2 leading-relaxed max-w-2xl ${dark ? 'text-[#A69B8D]' : 'text-[#6B6863]'}`}>{subtitle}</p>
         )}
       </div>
     </div>
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 shrink-0 -mr-1 -mt-0.5">
       {action}
       {onClose && (
         <button
           type="button"
           onClick={onClose}
-          className={`p-1.5 rounded-[8px] transition-colors ${
-            dark ? 'text-[#A69B8D] hover:text-white hover:bg-[#1C1C1C]' : 'text-[#6B6863] hover:text-[#171717] hover:bg-[#F7F6F3]'
+          className={`p-2 rounded-[8px] transition-colors ${
+            dark ? 'text-[#A69B8D] hover:text-white hover:bg-[#252525]' : 'text-[#6B6863] hover:text-[#171717] hover:bg-[#F7F6F3]'
           }`}
           aria-label="Close dialog"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
       )}
     </div>

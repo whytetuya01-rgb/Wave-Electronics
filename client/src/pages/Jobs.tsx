@@ -25,6 +25,10 @@ import {
   CheckCheck,
   Receipt,
   FileCheck2,
+  ClipboardCheck,
+  BarChart3,
+  Lock,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface VendorOption {
@@ -63,6 +67,61 @@ interface ReceiveRow {
   remaining: number;
   receivedQty: number;
   damagedQty: number;
+}
+
+interface JobCircuitReceiveRow {
+  jobCircuitId: string;
+  circuitCode: string;
+  circuitName: string;
+  orderedQty: number;
+  remaining: number;
+  goodQty: number;
+  rejectedQty: number;
+  rejectionReason: string;
+}
+
+interface ComponentReturnRow {
+  componentId: string;
+  partCode: string;
+  name: string;
+  challanId: string;
+  challanNumber: string;
+  remaining: number;
+  receivedQty: number;
+  damagedQty: number;
+}
+
+interface ReconciliationComponentRow {
+  componentId: string;
+  partCode: string;
+  name: string;
+  issuedQty: number;
+  consumedQty: number;
+  returnedQty: number;
+  damagedQty: number;
+  remainingWithVendor: number;
+  ledgerDiscrepancy: number;
+  isFullyReconciled: boolean;
+}
+
+interface ReconciliationCircuitRow {
+  jobCircuitId: string;
+  circuitCode: string;
+  circuitName: string;
+  circuitVersion: string;
+  orderedQty: number;
+  receivedGoodQty: number;
+  receivedRejectedQty: number;
+  remaining: number;
+  isFullyAccounted: boolean;
+}
+
+interface ReconciliationData {
+  jobNumber: string;
+  status: string;
+  components: ReconciliationComponentRow[];
+  circuits: ReconciliationCircuitRow[];
+  closeEligible: boolean;
 }
 
 interface ChallanSummary {
@@ -163,6 +222,26 @@ export const Jobs: React.FC = () => {
   const [receiveIdempotencyKey, setReceiveIdempotencyKey] = useState('');
   const [receiveSubmitting, setReceiveSubmitting] = useState(false);
   const [receiveError, setReceiveError] = useState('');
+
+  // Combined Job Receipt (finished circuits + component returns together)
+  const [showJobReceiveModal, setShowJobReceiveModal] = useState(false);
+  const [jobReceiveTarget, setJobReceiveTarget] = useState<JobListItem | null>(null);
+  const [jobReceiveCircuitRows, setJobReceiveCircuitRows] = useState<JobCircuitReceiveRow[]>([]);
+  const [jobReceiveComponentRows, setJobReceiveComponentRows] = useState<ComponentReturnRow[]>([]);
+  const [jobReceiveVendorRef, setJobReceiveVendorRef] = useState('');
+  const [jobReceiveRemarks, setJobReceiveRemarks] = useState('');
+  const [jobReceiveIdempotencyKey, setJobReceiveIdempotencyKey] = useState('');
+  const [jobReceiveSubmitting, setJobReceiveSubmitting] = useState(false);
+  const [jobReceiveError, setJobReceiveError] = useState('');
+
+  // Reconciliation & Closing
+  const [reconciliation, setReconciliation] = useState<ReconciliationData | null>(null);
+  const [reconciliationLoading, setReconciliationLoading] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closeIsShort, setCloseIsShort] = useState(false);
+  const [closeReason, setCloseReason] = useState('');
+  const [closeSubmitting, setCloseSubmitting] = useState(false);
+  const [closeError, setCloseError] = useState('');
 
   // Modals
   const [showFormModal, setShowFormModal] = useState(false);
@@ -324,6 +403,7 @@ export const Jobs: React.FC = () => {
     setDetailsLoading(true);
     setDetailedJob(null);
     setJobChallans([]);
+    setReconciliation(null);
     try {
       const [jobRes, challansRes] = await Promise.all([
         api.get(`/jobs/${job._id}`),
@@ -335,6 +415,18 @@ export const Jobs: React.FC = () => {
       console.error('Failed to load job details:', err);
     } finally {
       setDetailsLoading(false);
+    }
+
+    if (job.status === 'material_issued' || job.status === 'partially_received' || job.status === 'closed') {
+      setReconciliationLoading(true);
+      try {
+        const res = await api.get(`/jobs/${job._id}/reconciliation`);
+        setReconciliation(res.data.data);
+      } catch (err) {
+        console.error('Failed to load job reconciliation:', err);
+      } finally {
+        setReconciliationLoading(false);
+      }
     }
   };
 
@@ -579,6 +671,165 @@ export const Jobs: React.FC = () => {
     }
   };
 
+  // Combined Job Receipt Handlers (finished circuits + component returns)
+  const handleOpenJobReceiveModal = async (job: JobListItem) => {
+    setJobReceiveTarget(job);
+    setJobReceiveError('');
+    setJobReceiveVendorRef('');
+    setJobReceiveRemarks('');
+    setJobReceiveIdempotencyKey(generateIdempotencyKey());
+    setShowJobReceiveModal(true);
+    try {
+      const [jobRes, challansRes] = await Promise.all([
+        api.get(`/jobs/${job._id}`),
+        api.get(`/challans/job/${job._id}`).catch(() => ({ data: { data: [] } })),
+      ]);
+      const jobDetail = jobRes.data.data;
+      const challans: ChallanSummary[] = challansRes.data.data || [];
+
+      const circuitRows: JobCircuitReceiveRow[] = jobDetail.jobCircuits
+        .filter((jc: any) => jc.orderedQty - (jc.receivedGoodQty || 0) - (jc.receivedRejectedQty || 0) > 0)
+        .map((jc: any) => ({
+          jobCircuitId: jc._id,
+          circuitCode: jc.circuitCode,
+          circuitName: jc.circuitName,
+          orderedQty: jc.orderedQty,
+          remaining: jc.orderedQty - (jc.receivedGoodQty || 0) - (jc.receivedRejectedQty || 0),
+          goodQty: 0,
+          rejectedQty: 0,
+          rejectionReason: '',
+        }));
+
+      const componentRows: ComponentReturnRow[] = [];
+      for (const ch of challans) {
+        for (const it of ch.items) {
+          const remaining = it.issuedQty - it.receivedQty - it.damagedQty;
+          if (remaining > 0) {
+            componentRows.push({
+              componentId: it.componentId,
+              partCode: it.partCode,
+              name: it.name,
+              challanId: ch._id,
+              challanNumber: ch.challanNumber,
+              remaining,
+              receivedQty: 0,
+              damagedQty: 0,
+            });
+          }
+        }
+      }
+
+      setJobReceiveCircuitRows(circuitRows);
+      setJobReceiveComponentRows(componentRows);
+    } catch (err: any) {
+      setJobReceiveError(err.response?.data?.message || 'Failed to load job for receiving');
+    }
+  };
+
+  const handleJobReceiveCircuitChange = (index: number, field: 'goodQty' | 'rejectedQty' | 'rejectionReason', val: any) => {
+    const updated = [...jobReceiveCircuitRows];
+    updated[index] = { ...updated[index], [field]: val };
+    setJobReceiveCircuitRows(updated);
+  };
+
+  const handleJobReceiveComponentChange = (index: number, field: 'receivedQty' | 'damagedQty', val: number) => {
+    const updated = [...jobReceiveComponentRows];
+    updated[index] = { ...updated[index], [field]: val };
+    setJobReceiveComponentRows(updated);
+  };
+
+  const handleSubmitJobReceive = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!jobReceiveTarget) return;
+    setJobReceiveError('');
+
+    const circuitLines = jobReceiveCircuitRows.filter((r) => r.goodQty > 0 || r.rejectedQty > 0);
+    const componentLines = jobReceiveComponentRows.filter((r) => r.receivedQty > 0 || r.damagedQty > 0);
+
+    if (circuitLines.length === 0 && componentLines.length === 0) {
+      setJobReceiveError('Enter a good/rejected circuit quantity or a received/damaged component quantity for at least one line');
+      return;
+    }
+    for (const row of circuitLines) {
+      if (row.goodQty + row.rejectedQty > row.remaining) {
+        setJobReceiveError(`${row.circuitCode}: good + rejected cannot exceed the remaining ordered quantity (${row.remaining})`);
+        return;
+      }
+    }
+    for (const row of componentLines) {
+      if (row.receivedQty + row.damagedQty > row.remaining) {
+        setJobReceiveError(`${row.partCode}: received + damaged cannot exceed the remaining receivable quantity (${row.remaining})`);
+        return;
+      }
+    }
+
+    setJobReceiveSubmitting(true);
+    try {
+      const res = await api.post(`/jobs/${jobReceiveTarget._id}/receipts`, {
+        vendorRefNumber: jobReceiveVendorRef || undefined,
+        circuitReceipts: circuitLines.map((r) => ({
+          jobCircuitId: r.jobCircuitId,
+          goodQty: r.goodQty,
+          rejectedQty: r.rejectedQty,
+          rejectionReason: r.rejectedQty > 0 ? r.rejectionReason || undefined : undefined,
+        })),
+        componentReturns: componentLines.map((r) => ({
+          componentId: r.componentId,
+          challanId: r.challanId,
+          receivedQty: r.receivedQty,
+          damagedQty: r.damagedQty,
+        })),
+        remarks: jobReceiveRemarks || undefined,
+        idempotencyKey: jobReceiveIdempotencyKey,
+      });
+      const receiptNumber = res.data.data.receipt.receiptNumber;
+      setSuccessMsg(
+        res.data.data.alreadyProcessed
+          ? `Receipt already processed as '${receiptNumber}' (duplicate request ignored)`
+          : `Job receipt '${receiptNumber}' recorded - finished circuits and component returns applied together`
+      );
+      setShowJobReceiveModal(false);
+      if (selectedJob) handleOpenDetails(selectedJob);
+      fetchJobs();
+    } catch (err: any) {
+      setJobReceiveError(err.response?.data?.message || 'Failed to record job receipt');
+    } finally {
+      setJobReceiveSubmitting(false);
+    }
+  };
+
+  // Job Closing Handlers
+  const handleOpenCloseModal = () => {
+    setCloseIsShort(!(reconciliation?.closeEligible));
+    setCloseReason('');
+    setCloseError('');
+    setShowCloseModal(true);
+  };
+
+  const handleSubmitClose = async () => {
+    if (!selectedJob) return;
+    setCloseError('');
+    if (closeIsShort && !closeReason.trim()) {
+      setCloseError('A reason is required to short-close a job with outstanding quantities or material');
+      return;
+    }
+    setCloseSubmitting(true);
+    try {
+      const res = await api.post(`/jobs/${selectedJob._id}/close`, {
+        shortClose: closeIsShort,
+        reason: closeIsShort ? closeReason.trim() : undefined,
+      });
+      setSuccessMsg(res.data.data.job.isShortClosed ? `Job '${res.data.data.job.jobNumber}' short-closed` : `Job '${res.data.data.job.jobNumber}' closed`);
+      setShowCloseModal(false);
+      setShowDetailsModal(false);
+      fetchJobs();
+    } catch (err: any) {
+      setCloseError(err.response?.data?.message || 'Failed to close job');
+    } finally {
+      setCloseSubmitting(false);
+    }
+  };
+
   // Stat metrics
   const totalJobs = jobs.length;
   const draftJobs = jobs.filter((j) => j.status === 'draft').length;
@@ -819,6 +1070,17 @@ export const Jobs: React.FC = () => {
                           >
                             <PackageCheck className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Issue Material</span>
+                          </button>
+                        )}
+
+                        {isStoreKeeper && (job.status === 'material_issued' || job.status === 'partially_received') && (
+                          <button
+                            onClick={() => handleOpenJobReceiveModal(job)}
+                            className="btn-primary px-2 py-1 text-xs bg-[#168060] hover:bg-[#12684e]"
+                            title="Receive Finished Circuits & Component Returns Together"
+                          >
+                            <ClipboardCheck className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Receive</span>
                           </button>
                         )}
 
@@ -1167,6 +1429,107 @@ export const Jobs: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Material & Finished-Circuit Reconciliation */}
+            {(reconciliationLoading || reconciliation) && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5" /> Material & Finished-Circuit Reconciliation
+                  </h4>
+                  {reconciliation && (
+                    <Badge variant={reconciliation.closeEligible ? 'success' : 'warning'}>
+                      {reconciliation.closeEligible ? 'Fully Reconciled' : 'Outstanding Items'}
+                    </Badge>
+                  )}
+                </div>
+                {reconciliationLoading ? (
+                  <div className="py-4 text-center text-xs text-slate-400">Computing reconciliation...</div>
+                ) : reconciliation ? (
+                  <div className="space-y-3">
+                    <div className="enterprise-card overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr>
+                            <th className="th-enterprise">Circuit</th>
+                            <th className="th-enterprise text-right">Ordered</th>
+                            <th className="th-enterprise text-right">Good</th>
+                            <th className="th-enterprise text-right">Rejected</th>
+                            <th className="th-enterprise text-right">Remaining</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {reconciliation.circuits.map((c) => (
+                            <tr key={c.jobCircuitId} className={c.isFullyAccounted ? '' : 'bg-amber-50/50'}>
+                              <td className="td-enterprise font-mono font-semibold">{c.circuitCode}</td>
+                              <td className="td-enterprise text-right font-mono">{c.orderedQty}</td>
+                              <td className="td-enterprise text-right font-mono text-[#168060]">{c.receivedGoodQty}</td>
+                              <td className="td-enterprise text-right font-mono text-[#C2413A]">{c.receivedRejectedQty}</td>
+                              <td className="td-enterprise text-right font-mono font-bold">{c.remaining > 0 ? c.remaining : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="enterprise-card overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr>
+                            <th className="th-enterprise">Component</th>
+                            <th className="th-enterprise text-right">Issued</th>
+                            <th className="th-enterprise text-right">Consumed</th>
+                            <th className="th-enterprise text-right">Returned</th>
+                            <th className="th-enterprise text-right">Damaged</th>
+                            <th className="th-enterprise text-right">With Vendor</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {reconciliation.components.map((c) => (
+                            <tr key={c.componentId} className={c.isFullyReconciled ? '' : 'bg-amber-50/50'}>
+                              <td className="td-enterprise font-mono font-semibold">{c.partCode}</td>
+                              <td className="td-enterprise text-right font-mono">{c.issuedQty}</td>
+                              <td className="td-enterprise text-right font-mono">{c.consumedQty}</td>
+                              <td className="td-enterprise text-right font-mono text-[#168060]">{c.returnedQty}</td>
+                              <td className="td-enterprise text-right font-mono text-[#C2413A]">{c.damagedQty}</td>
+                              <td className="td-enterprise text-right font-mono font-bold">
+                                {c.remainingWithVendor > 0 ? c.remainingWithVendor : '—'}
+                                {c.ledgerDiscrepancy !== 0 && (
+                                  <span title={`Ledger discrepancy: ${c.ledgerDiscrepancy}`}>
+                                    <ShieldAlert className="inline w-3 h-3 ml-1 text-red-600" />
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {isAdmin && (detailedJob.status === 'material_issued' || detailedJob.status === 'partially_received') && (
+                      <div className="flex justify-end">
+                        <button onClick={handleOpenCloseModal} className="btn-secondary text-xs py-1.5 border-[#141414]/20">
+                          <Lock className="w-3.5 h-3.5" />
+                          {reconciliation.closeEligible ? 'Close Job' : 'Short-Close Job'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {detailedJob.status === 'closed' && (
+              <div className="p-3.5 rounded-lg border border-[#168060]/30 bg-[#168060]/5 flex items-center gap-2.5">
+                <Lock className="w-4 h-4 text-[#168060]" />
+                <div className="text-xs text-[#12684e]">
+                  <span className="font-semibold">
+                    {detailedJob.isShortClosed ? 'Short-closed' : 'Closed'}
+                  </span>
+                  {detailedJob.closedAt && <span> on {new Date(detailedJob.closedAt).toLocaleDateString()}</span>}
+                  {detailedJob.closeReason && <div className="mt-0.5 text-[#383531]">Reason: {detailedJob.closeReason}</div>}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-sm text-slate-400">Failed to load job details.</p>
@@ -1408,6 +1771,247 @@ export const Jobs: React.FC = () => {
         variant="danger"
         isLoading={actionLoading}
       />
+
+      {/* Combined Job Receipt Modal: Finished Circuits + Component Returns Together */}
+      <Modal
+        isOpen={showJobReceiveModal}
+        onClose={() => setShowJobReceiveModal(false)}
+        size="2xl"
+        icon={<ClipboardCheck className="w-5 h-5 text-[#807365]" />}
+        title={jobReceiveTarget ? `Receive - ${jobReceiveTarget.jobNumber}` : 'Receive'}
+        subtitle="Record finished circuits (good/rejected) and any outstanding component returns or damage together, in one transaction. Leave a line at zero to skip it."
+        onSubmit={handleSubmitJobReceive}
+        footer={
+          <>
+            <button type="button" onClick={() => setShowJobReceiveModal(false)} className="btn-secondary">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={jobReceiveSubmitting || (jobReceiveCircuitRows.length === 0 && jobReceiveComponentRows.length === 0)}
+              className="btn-primary"
+            >
+              {jobReceiveSubmitting ? 'Recording...' : 'Record Receipt'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          {jobReceiveError && (
+            <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs">{jobReceiveError}</div>
+          )}
+
+          <div>
+            <label className="label-text block mb-1.5">Vendor Delivery / Reference Number (optional)</label>
+            <input
+              type="text"
+              value={jobReceiveVendorRef}
+              onChange={(e) => setJobReceiveVendorRef(e.target.value)}
+              placeholder="Vendor's own delivery note / reference number"
+              className="input-enterprise w-full"
+            />
+          </div>
+
+          {jobReceiveCircuitRows.length > 0 && (
+            <div>
+              <label className="label-text block mb-1.5 font-semibold text-slate-800">Finished Circuits</label>
+              <div className="enterprise-card overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr>
+                      <th className="th-enterprise">Circuit</th>
+                      <th className="th-enterprise text-right">Remaining</th>
+                      <th className="th-enterprise text-right">Good Qty</th>
+                      <th className="th-enterprise text-right">Rejected Qty</th>
+                      <th className="th-enterprise">Rejection Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {jobReceiveCircuitRows.map((row, idx) => (
+                      <tr key={row.jobCircuitId}>
+                        <td className="td-enterprise">
+                          <span className="font-mono font-semibold">{row.circuitCode}</span>
+                          <div className="text-[12px] text-slate-500">{row.circuitName}</div>
+                        </td>
+                        <td className="td-enterprise text-right font-mono font-bold text-[#168060]">{row.remaining}</td>
+                        <td className="td-enterprise text-right">
+                          <input
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="1"
+                            value={row.goodQty}
+                            onChange={(e) => handleJobReceiveCircuitChange(idx, 'goodQty', parseInt(e.target.value) || 0)}
+                            className="input-enterprise text-right font-mono w-20 ml-auto"
+                          />
+                        </td>
+                        <td className="td-enterprise text-right">
+                          <input
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="1"
+                            value={row.rejectedQty}
+                            onChange={(e) => handleJobReceiveCircuitChange(idx, 'rejectedQty', parseInt(e.target.value) || 0)}
+                            className="input-enterprise text-right font-mono w-20 ml-auto"
+                          />
+                        </td>
+                        <td className="td-enterprise">
+                          {row.rejectedQty > 0 && (
+                            <input
+                              type="text"
+                              placeholder="Reason"
+                              value={row.rejectionReason}
+                              onChange={(e) => handleJobReceiveCircuitChange(idx, 'rejectionReason', e.target.value)}
+                              className="input-enterprise text-xs"
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {jobReceiveComponentRows.length > 0 && (
+            <div>
+              <label className="label-text block mb-1.5 font-semibold text-slate-800">Component Returns (Unused / Damaged)</label>
+              <div className="enterprise-card overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr>
+                      <th className="th-enterprise">Component</th>
+                      <th className="th-enterprise">Challan</th>
+                      <th className="th-enterprise text-right">Remaining</th>
+                      <th className="th-enterprise text-right">Received (good)</th>
+                      <th className="th-enterprise text-right">Damaged / Lost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {jobReceiveComponentRows.map((row, idx) => (
+                      <tr key={`${row.challanId}-${row.componentId}`}>
+                        <td className="td-enterprise">
+                          <span className="font-mono font-semibold">{row.partCode}</span>
+                          <div className="text-[12px] text-slate-500">{row.name}</div>
+                        </td>
+                        <td className="td-enterprise font-mono text-[12px] text-slate-500">{row.challanNumber}</td>
+                        <td className="td-enterprise text-right font-mono font-bold text-[#168060]">{row.remaining}</td>
+                        <td className="td-enterprise text-right">
+                          <input
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="any"
+                            value={row.receivedQty}
+                            onChange={(e) => handleJobReceiveComponentChange(idx, 'receivedQty', parseFloat(e.target.value) || 0)}
+                            className="input-enterprise text-right font-mono w-24 ml-auto"
+                          />
+                        </td>
+                        <td className="td-enterprise text-right">
+                          <input
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="any"
+                            value={row.damagedQty}
+                            onChange={(e) => handleJobReceiveComponentChange(idx, 'damagedQty', parseFloat(e.target.value) || 0)}
+                            className="input-enterprise text-right font-mono w-24 ml-auto"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {jobReceiveCircuitRows.length === 0 && jobReceiveComponentRows.length === 0 && (
+            <div className="py-8 text-center text-sm text-[#6B6863]">
+              <ClipboardCheck className="w-8 h-8 mx-auto mb-2 text-[#A69B8D]" />
+              Nothing left to receive - every ordered circuit and issued component on this job is already fully reconciled.
+            </div>
+          )}
+
+          <div>
+            <label className="label-text block mb-1.5">Remarks (optional)</label>
+            <textarea
+              rows={2}
+              placeholder="Any notes for this receipt..."
+              value={jobReceiveRemarks}
+              onChange={(e) => setJobReceiveRemarks(e.target.value)}
+              className="w-full px-3 py-2 rounded-[10px] border border-[#E6E3DE] text-sm text-[#171717] placeholder-[#6B6863]/60 focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414] transition-all bg-white"
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Job Close / Short-Close Modal */}
+      <Modal
+        isOpen={showCloseModal}
+        onClose={() => setShowCloseModal(false)}
+        size="md"
+        icon={<Lock className="w-5 h-5 text-[#807365]" />}
+        title={closeIsShort ? 'Short-Close Job' : 'Close Job'}
+        subtitle={
+          closeIsShort
+            ? 'This job has outstanding circuit quantities or unreconciled material. Closing now requires admin approval and a reason.'
+            : 'All circuits and material are fully reconciled. This job can be closed normally.'
+        }
+        footer={
+          <>
+            <button type="button" onClick={() => setShowCloseModal(false)} className="btn-secondary">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitClose}
+              disabled={closeSubmitting}
+              className={closeIsShort ? 'btn-secondary border-[#C2413A]/40 text-[#C2413A] hover:bg-[#C2413A]/10' : 'btn-primary'}
+            >
+              {closeSubmitting ? 'Closing...' : closeIsShort ? 'Short-Close Job' : 'Close Job'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {closeError && <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs">{closeError}</div>}
+
+          {!reconciliation?.closeEligible && (
+            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
+              <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                This job is not fully reconciled - some circuits or components still have outstanding quantities. A normal close is not
+                possible; short-closing requires a mandatory reason and will record the outstanding amounts for audit.
+              </span>
+            </div>
+          )}
+
+          {closeIsShort && (
+            <div>
+              <label className="label-text block mb-1.5">
+                Reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                required
+                placeholder="e.g. Vendor unable to deliver remaining units - short-closing per manager approval"
+                value={closeReason}
+                onChange={(e) => setCloseReason(e.target.value)}
+                className="w-full px-3 py-2 rounded-[10px] border border-[#E6E3DE] text-sm text-[#171717] placeholder-[#6B6863]/60 focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414] transition-all bg-white"
+              />
+            </div>
+          )}
+
+          {!closeIsShort && (
+            <p className="text-xs text-slate-500">
+              Closing locks this job permanently. It will no longer accept material issues, receipts, or edits.
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

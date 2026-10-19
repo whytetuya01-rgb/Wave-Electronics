@@ -114,6 +114,15 @@ export interface ChallanSummary {
   receivedBy?: { name: string };
 }
 
+export interface JobReceiptSummary {
+  _id: string;
+  receiptNumber: string;
+  receiptDate: string;
+  circuitReceipts: Array<{ circuitCode: string; goodQty: number; rejectedQty: number }>;
+  componentReturns: Array<{ partCode: string; receivedQty: number; damagedQty: number }>;
+  receivedById?: { name: string };
+}
+
 export interface JobListItem {
   _id: string;
   jobNumber: string;

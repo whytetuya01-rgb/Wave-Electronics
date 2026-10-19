@@ -21,6 +21,7 @@ import {
   ComponentReturnRow,
   ReconciliationData,
   ChallanSummary,
+  JobReceiptSummary,
   JobListItem,
   STATUS_VARIANT,
   STATUS_LABEL,
@@ -70,6 +71,8 @@ export const Jobs: React.FC = () => {
   const [issueSubmitting, setIssueSubmitting] = useState(false);
   const [issueError, setIssueError] = useState('');
   const [jobChallans, setJobChallans] = useState<ChallanSummary[]>([]);
+  const [jobReceiptsList, setJobReceiptsList] = useState<JobReceiptSummary[]>([]);
+  const [downloadingPdfKey, setDownloadingPdfKey] = useState<string | null>(null);
 
   // Material Receive
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -260,14 +263,17 @@ export const Jobs: React.FC = () => {
     setDetailsLoading(true);
     setDetailedJob(null);
     setJobChallans([]);
+    setJobReceiptsList([]);
     setReconciliation(null);
     try {
-      const [jobRes, challansRes] = await Promise.all([
+      const [jobRes, challansRes, receiptsRes] = await Promise.all([
         api.get(`/jobs/${job._id}`),
         api.get(`/challans/job/${job._id}`).catch(() => ({ data: { data: [] } })),
+        api.get(`/jobs/${job._id}/receipts`).catch(() => ({ data: { data: [] } })),
       ]);
       setDetailedJob(jobRes.data.data);
       setJobChallans(challansRes.data.data || []);
+      setJobReceiptsList(receiptsRes.data.data || []);
     } catch (err) {
       console.error('Failed to load job details:', err);
     } finally {
@@ -305,6 +311,53 @@ export const Jobs: React.FC = () => {
   };
 
   const generateIdempotencyKey = () => `iss_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  // Shared PDF download handler for both Delivery Challan and Job Receipt
+  // documents. Uses the authenticated `api` client (so the Bearer token is
+  // attached exactly like every other request) with responseType: 'blob',
+  // then triggers a browser download via a temporary object URL - there is
+  // no cookie-based auth in this app, so a plain <a href> link would never
+  // carry the token and the server would reject it with 401.
+  const handleDownloadPdf = async (url: string, fallbackFilename: string, key: string) => {
+    setDownloadingPdfKey(key);
+    setErrorMsg('');
+    try {
+      const res = await api.get(url, { responseType: 'blob' });
+      const disposition: string | undefined = res.headers['content-disposition'];
+      const match = disposition && /filename="?([^"]+)"?/.exec(disposition);
+      const filename = match ? match[1] : fallbackFilename;
+
+      const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      let message = 'Failed to download PDF';
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          message = JSON.parse(text)?.message || message;
+        } catch {
+          // Fall through to the generic message below.
+        }
+      } else {
+        message = err.response?.data?.message || message;
+      }
+      setErrorMsg(message);
+    } finally {
+      setDownloadingPdfKey(null);
+    }
+  };
+
+  const handleDownloadChallanPdf = (challan: ChallanSummary) =>
+    handleDownloadPdf(`/challans/${challan._id}/pdf`, `${challan.challanNumber}.pdf`, `challan-${challan._id}`);
+
+  const handleDownloadJobReceiptPdf = (jobId: string, receipt: JobReceiptSummary) =>
+    handleDownloadPdf(`/jobs/${jobId}/receipts/${receipt._id}/pdf`, `${receipt.receiptNumber}.pdf`, `receipt-${receipt._id}`);
 
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -991,12 +1044,16 @@ export const Jobs: React.FC = () => {
         detailsLoading={detailsLoading}
         detailedJob={detailedJob}
         jobChallans={jobChallans}
+        jobReceiptsList={jobReceiptsList}
         isStoreKeeper={isStoreKeeper}
         onOpenReceiveModal={handleOpenReceiveModal}
         reconciliation={reconciliation}
         reconciliationLoading={reconciliationLoading}
         canCloseJob={canCloseJob}
         onOpenCloseModal={handleOpenCloseModal}
+        onDownloadChallanPdf={handleDownloadChallanPdf}
+        onDownloadJobReceiptPdf={handleDownloadJobReceiptPdf}
+        downloadingPdfKey={downloadingPdfKey}
       />
 
       <IssueMaterialModal

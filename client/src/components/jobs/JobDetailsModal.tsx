@@ -1,8 +1,9 @@
 import React from 'react';
 import { Modal } from '../ui/Modal';
 import { Badge } from '../ui/Badge';
-import { Workflow, Receipt, Lock } from 'lucide-react';
-import { ChallanSummary, ReconciliationData, CHALLAN_STATUS_LABEL } from './jobTypes';
+import { ButtonSpinner } from '../ui/Loading';
+import { Workflow, Receipt, Lock, FileDown, ClipboardCheck } from 'lucide-react';
+import { ChallanSummary, JobReceiptSummary, ReconciliationData, CHALLAN_STATUS_LABEL } from './jobTypes';
 import { JobReconciliationPanel } from './JobReconciliationPanel';
 
 interface JobDetailsModalProps {
@@ -11,12 +12,16 @@ interface JobDetailsModalProps {
   detailsLoading: boolean;
   detailedJob: any;
   jobChallans: ChallanSummary[];
+  jobReceiptsList: JobReceiptSummary[];
   isStoreKeeper: boolean;
   onOpenReceiveModal: (challan: ChallanSummary) => void;
   reconciliation: ReconciliationData | null;
   reconciliationLoading: boolean;
   canCloseJob: boolean;
   onOpenCloseModal: () => void;
+  onDownloadChallanPdf: (challan: ChallanSummary) => void;
+  onDownloadJobReceiptPdf: (jobId: string, receipt: JobReceiptSummary) => void;
+  downloadingPdfKey: string | null;
 }
 
 // Job Details & BOM Requirements Modal - moved verbatim out of
@@ -30,12 +35,16 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
   detailsLoading,
   detailedJob,
   jobChallans,
+  jobReceiptsList,
   isStoreKeeper,
   onOpenReceiveModal,
   reconciliation,
   reconciliationLoading,
   canCloseJob,
   onOpenCloseModal,
+  onDownloadChallanPdf,
+  onDownloadJobReceiptPdf,
+  downloadingPdfKey,
 }) => {
   return (
     <Modal
@@ -148,6 +157,15 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
                         <Badge variant={ch.status === 'received' ? 'success' : 'warning'}>
                           {CHALLAN_STATUS_LABEL[ch.status] || ch.status}
                         </Badge>
+                        <button
+                          onClick={() => onDownloadChallanPdf(ch)}
+                          disabled={downloadingPdfKey === `challan-${ch._id}`}
+                          className="btn-secondary px-2 py-0.5 text-xs"
+                          title="Download Delivery Challan PDF"
+                        >
+                          {downloadingPdfKey === `challan-${ch._id}` ? <ButtonSpinner /> : <FileDown className="w-3.5 h-3.5" />}
+                          <span>PDF</span>
+                        </button>
                         {isStoreKeeper && ch.status !== 'received' && (
                           <button
                             onClick={() => onOpenReceiveModal(ch)}
@@ -167,6 +185,52 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Finished Circuit Receipts (Job Receipts) */}
+          {jobReceiptsList.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                Finished Circuit Receipts ({jobReceiptsList.length})
+              </h4>
+              <div className="space-y-3">
+                {jobReceiptsList.map((rc) => {
+                  const totalGood = rc.circuitReceipts.reduce((s, c) => s + c.goodQty, 0);
+                  const totalRejected = rc.circuitReceipts.reduce((s, c) => s + c.rejectedQty, 0);
+                  return (
+                    <div key={rc._id} className="p-3.5 rounded-lg border border-slate-200 bg-white">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <ClipboardCheck className="w-4 h-4 text-slate-400" />
+                          <span className="font-mono font-bold text-slate-900">{rc.receiptNumber}</span>
+                          <span className="text-xs text-slate-500">
+                            ({new Date(rc.receiptDate).toLocaleDateString()})
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => onDownloadJobReceiptPdf(detailedJob._id, rc)}
+                          disabled={downloadingPdfKey === `receipt-${rc._id}`}
+                          className="btn-secondary px-2 py-0.5 text-xs"
+                          title="Download Job Receipt PDF"
+                        >
+                          {downloadingPdfKey === `receipt-${rc._id}` ? <ButtonSpinner /> : <FileDown className="w-3.5 h-3.5" />}
+                          <span>PDF</span>
+                        </button>
+                      </div>
+                      <div className="text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
+                        <span>
+                          Good: <strong className="text-[#168060]">{totalGood}</strong> | Rejected:{' '}
+                          <strong className="text-[#C2413A]">{totalRejected}</strong>
+                        </span>
+                        {rc.componentReturns.length > 0 && (
+                          <span>Component returns: {rc.componentReturns.length} line(s)</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

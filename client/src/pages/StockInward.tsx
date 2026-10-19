@@ -704,17 +704,29 @@ export const StockInward: React.FC = () => {
           className="print:p-0 print:border-none print:shadow-none"
           bodyClassName="p-0"
         headerBanner={
-          <div className="px-6 py-3.5 bg-[#141414] text-white flex items-center justify-between print:hidden border-b border-[#252525]">
-            <span className="text-xs font-medium text-[#E8E6E2]">Goods Inward Voucher View</span>
-            <div className="flex items-center gap-2">
+          <div className="px-6 sm:px-8 py-4.5 bg-white border-b border-[#E7E4DE] flex items-center justify-between print:hidden">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-[10px] bg-[#FAF9F7] border border-[#E7E4DE] text-[#807365] flex items-center justify-center shrink-0">
+                <Printer className="w-5 h-5 text-[#807365]" />
+              </div>
+              <div>
+                <span className="text-base sm:text-lg font-semibold text-[#171717] block">Goods Inward Voucher</span>
+                <span className="text-xs sm:text-[13px] text-[#716B64] font-mono">{selectedInward.inwardNumber}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5">
               <button
                 onClick={handlePrintSlip}
-                className="btn-primary bg-white text-[#141414] hover:bg-[#F7F6F3] text-xs px-3 py-1.5"
+                className="btn-primary text-xs px-3.5 py-2 inline-flex items-center gap-2"
               >
-                <Printer className="w-3.5 h-3.5" />
+                <Printer className="w-4 h-4" />
                 <span>Print Voucher</span>
               </button>
-              <button onClick={() => setShowSlipModal(false)} className="btn-ghost text-[#A69B8D] hover:text-white p-1">
+              <button
+                onClick={() => setShowSlipModal(false)}
+                className="p-2 rounded-[8px] text-[#716B64] hover:text-[#171717] hover:bg-[#FAF9F7] transition-colors"
+                aria-label="Close"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>

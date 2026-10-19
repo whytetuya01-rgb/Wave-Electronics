@@ -5,12 +5,12 @@ import { X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 
 const SIZE_CLASSES: Record<ModalSize, string> = {
-  sm: 'max-w-[420px]',     // Confirmation, Delete, Duplicates (420px)
-  md: 'max-w-[560px]',     // Small info, Quick status popups, Adjustments (560px)
-  lg: 'max-w-[720px]',     // Simple Add/Edit forms (Vendors, Simple entities) (720px)
-  xl: 'max-w-[960px]',     // Detailed Add/Edit forms (Components with specs, Vouchers) (960px)
-  '2xl': 'max-w-[1200px]', // BOM Builder, GIN Entry, Job Creation & Details (1200px)
-  full: 'max-w-[95vw]',    // Deep audit tables & maximum-width analysis (95vw)
+  sm: 'max-w-[460px]',     // Delete / Approval / Confirmation (420–480px)
+  md: 'max-w-[620px]',     // Small Add/Edit form, Stock Adjustment (560–680px)
+  lg: 'max-w-[860px]',     // Component / Vendor form (760–960px)
+  xl: 'max-w-[1020px]',    // Details popup, Printable vouchers (850–1050px)
+  '2xl': 'max-w-[1180px]', // Stock Inward, BOM Builder, Create Job, Material Issue (1050–1200px)
+  full: 'max-w-[1280px] w-[95vw]', // Complex receipt / reconciliation / deep audit tables (1100–1300px)
 };
 
 export interface ModalProps {
@@ -24,7 +24,6 @@ export interface ModalProps {
   footer?: React.ReactNode;
   headerAction?: React.ReactNode;
   headerBanner?: React.ReactNode;
-  darkHeader?: boolean;
   closeOnBackdropClick?: boolean;
   closeOnEsc?: boolean;
   className?: string;
@@ -47,7 +46,6 @@ export const Modal: React.FC<ModalProps> & {
   footer,
   headerAction,
   headerBanner,
-  darkHeader = true,
   closeOnBackdropClick = true,
   closeOnEsc = true,
   className = '',
@@ -123,9 +121,9 @@ export const Modal: React.FC<ModalProps> & {
 
   const modalContent = (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-hidden select-none">
-      {/* Elegant Dark Charcoal Translucent Backdrop (rgba(15,15,15,0.45) + 3px blur) */}
+      {/* Refined Charcoal Overlay (rgba(23, 23, 23, 0.42) + 3px blur) */}
       <div
-        className="fixed inset-0 modal-overlay-bg modal-backdrop-animate cursor-pointer"
+        className="fixed inset-0 bg-[#171717]/45 backdrop-blur-[3px] transition-opacity duration-200 cursor-pointer"
         onClick={closeOnBackdropClick ? onClose : undefined}
         aria-hidden="true"
       />
@@ -136,46 +134,26 @@ export const Modal: React.FC<ModalProps> & {
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className={`relative bg-white rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border border-[#E6E3DE] w-full ${sizeClass} flex flex-col max-h-[90dvh] sm:max-h-[90vh] overflow-hidden modal-dialog-animate z-10 outline-none ${className}`}
+        className={`relative bg-white rounded-2xl shadow-[0_24px_50px_-12px_rgba(23,23,23,0.18)] border border-[#E7E4DE] w-full ${sizeClass} flex flex-col max-h-[90dvh] overflow-hidden modal-dialog-animate z-10 outline-none ${className}`}
       >
-        {/* Optional Custom Header Banner (e.g., custom voucher view) */}
+        {/* Optional Custom Header Banner (e.g., customized printable vouchers) */}
         {headerBanner}
 
-        {/* Standard Modal Header (Linear / Attio signature deep dark styling by default) */}
+        {/* Refined White Header */}
         {title && !headerBanner && (
-          <div
-            className={`px-6 sm:px-8 py-5 sm:py-6 flex items-start justify-between shrink-0 border-b ${
-              darkHeader
-                ? 'bg-[#141414] text-white border-[#252525]'
-                : 'bg-white text-[#171717] border-[#E6E3DE]'
-            }`}
-          >
-            <div className="flex items-start gap-4 sm:gap-4.5 flex-1 min-w-0 pr-4">
+          <div className="px-6 sm:px-8 py-5 sm:py-5.5 bg-white border-b border-[#E7E4DE] flex items-start justify-between shrink-0">
+            <div className="flex items-start gap-3.5 sm:gap-4 flex-1 min-w-0 pr-4">
               {icon && (
-                <div
-                  className={`w-11 h-11 rounded-[12px] flex items-center justify-center shrink-0 border mt-0.5 ${
-                    darkHeader
-                      ? 'bg-[#1C1C1C] border-[#303030] text-[#A69B8D] shadow-xs [&_svg]:text-[#A69B8D]'
-                      : 'bg-[#F7F6F3] border-[#E6E3DE] text-[#807365]'
-                  }`}
-                >
+                <div className="w-10 h-10 rounded-[10px] bg-[#FAF9F7] border border-[#E7E4DE] text-[#807365] flex items-center justify-center shrink-0 mt-0.5 shadow-xs [&_svg]:w-5 [&_svg]:h-5 [&_svg]:text-[#807365]">
                   {icon}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h3
-                  className={`text-base sm:text-lg font-semibold tracking-tight leading-snug break-words ${
-                    darkHeader ? 'text-white' : 'text-[#171717]'
-                  }`}
-                >
+                <h3 className="text-lg sm:text-[19px] font-semibold text-[#171717] tracking-tight leading-snug break-words">
                   {title}
                 </h3>
                 {subtitle && (
-                  <p
-                    className={`text-xs sm:text-[13px] mt-1.5 sm:mt-2 leading-relaxed max-w-2xl ${
-                      darkHeader ? 'text-[#A69B8D]' : 'text-[#6B6863]'
-                    }`}
-                  >
+                  <p className="text-xs sm:text-[13px] text-[#716B64] mt-1 leading-normal max-w-2xl">
                     {subtitle}
                   </p>
                 )}
@@ -186,11 +164,7 @@ export const Modal: React.FC<ModalProps> & {
               <button
                 type="button"
                 onClick={onClose}
-                className={`p-2 rounded-[8px] transition-colors duration-180 ${
-                  darkHeader
-                    ? 'text-[#A69B8D] hover:text-white hover:bg-[#252525]'
-                    : 'text-[#6B6863] hover:text-[#171717] hover:bg-[#F7F6F3]'
-                }`}
+                className="p-2 rounded-[8px] text-[#716B64] hover:text-[#171717] hover:bg-[#FAF9F7] transition-colors duration-180"
                 aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
@@ -207,7 +181,7 @@ export const Modal: React.FC<ModalProps> & {
             </div>
 
             {footer && (
-              <div className="px-6 sm:px-8 py-4.5 bg-[#FAF9F7] border-t border-[#E6E3DE] flex items-center justify-end gap-3 shrink-0">
+              <div className="px-6 sm:px-8 py-4 bg-[#FAF9F7] border-t border-[#E7E4DE] flex items-center justify-end gap-3 shrink-0">
                 {footer}
               </div>
             )}
@@ -219,7 +193,7 @@ export const Modal: React.FC<ModalProps> & {
             </div>
 
             {footer && (
-              <div className="px-6 sm:px-8 py-4.5 bg-[#FAF9F7] border-t border-[#E6E3DE] flex items-center justify-end gap-3 shrink-0">
+              <div className="px-6 sm:px-8 py-4 bg-[#FAF9F7] border-t border-[#E7E4DE] flex items-center justify-end gap-3 shrink-0">
                 {footer}
               </div>
             )}
@@ -242,33 +216,27 @@ export const ModalHeader: React.FC<{
   badge?: React.ReactNode;
   action?: React.ReactNode;
   className?: string;
-}> = ({ title, subtitle, onClose, dark = true, icon, badge, action, className = '' }) => (
+}> = ({ title, subtitle, onClose, icon, badge, action, className = '' }) => (
   <div
-    className={`px-6 sm:px-8 py-5 sm:py-6 flex items-start justify-between shrink-0 border-b ${
-      dark
-        ? 'bg-[#141414] text-white border-[#252525]'
-        : 'bg-white text-[#171717] border-[#E6E3DE]'
-    } ${className}`}
+    className={`px-6 sm:px-8 py-5 sm:py-5.5 bg-white border-b border-[#E7E4DE] flex items-start justify-between shrink-0 ${className}`}
   >
-    <div className="flex items-start gap-4 sm:gap-4.5 flex-1 min-w-0 pr-4">
+    <div className="flex items-start gap-3.5 sm:gap-4 flex-1 min-w-0 pr-4">
       {icon && (
         <div
-          className={`w-11 h-11 rounded-[12px] flex items-center justify-center shrink-0 border mt-0.5 ${
-            dark ? 'bg-[#1C1C1C] border border-[#303030] text-[#A69B8D] [&_svg]:text-[#A69B8D]' : 'bg-[#F7F6F3] border border-[#E6E3DE] text-[#807365]'
-          }`}
+          className="w-10 h-10 rounded-[10px] bg-[#FAF9F7] border border-[#E7E4DE] text-[#807365] flex items-center justify-center shrink-0 mt-0.5 shadow-xs [&_svg]:w-5 [&_svg]:h-5 [&_svg]:text-[#807365]"
         >
           {React.isValidElement(icon) ? icon : typeof icon === 'function' ? React.createElement(icon, { className: 'w-5 h-5' }) : null}
         </div>
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <h3 className={`text-base sm:text-lg font-semibold tracking-tight leading-snug ${dark ? 'text-white' : 'text-[#171717]'}`}>
+          <h3 className="text-lg sm:text-[19px] font-semibold text-[#171717] tracking-tight leading-snug">
             {title}
           </h3>
           {badge}
         </div>
         {subtitle && (
-          <p className={`text-xs sm:text-[13px] mt-1.5 sm:mt-2 leading-relaxed max-w-2xl ${dark ? 'text-[#A69B8D]' : 'text-[#6B6863]'}`}>{subtitle}</p>
+          <p className="text-xs sm:text-[13px] text-[#716B64] mt-1 leading-normal max-w-2xl">{subtitle}</p>
         )}
       </div>
     </div>
@@ -278,9 +246,7 @@ export const ModalHeader: React.FC<{
         <button
           type="button"
           onClick={onClose}
-          className={`p-2 rounded-[8px] transition-colors ${
-            dark ? 'text-[#A69B8D] hover:text-white hover:bg-[#252525]' : 'text-[#6B6863] hover:text-[#171717] hover:bg-[#F7F6F3]'
-          }`}
+          className="p-2 rounded-[8px] text-[#716B64] hover:text-[#171717] hover:bg-[#FAF9F7] transition-colors duration-180"
           aria-label="Close dialog"
         >
           <X className="w-5 h-5" />
@@ -294,14 +260,14 @@ export const ModalBody: React.FC<{
   children: React.ReactNode;
   className?: string;
 }> = ({ children, className = '' }) => (
-  <div className={`flex-1 min-h-0 overflow-y-auto px-6 py-5 select-text ${className}`}>{children}</div>
+  <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6 select-text ${className}`}>{children}</div>
 );
 
 export const ModalFooter: React.FC<{
   children: React.ReactNode;
   className?: string;
 }> = ({ children, className = '' }) => (
-  <div className={`px-6 py-4 bg-[#FAF9F7] border-t border-[#E6E3DE] flex items-center justify-end gap-2.5 shrink-0 ${className}`}>
+  <div className={`px-6 sm:px-8 py-4 bg-[#FAF9F7] border-t border-[#E7E4DE] flex items-center justify-end gap-3 shrink-0 ${className}`}>
     {children}
   </div>
 );
@@ -345,12 +311,12 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   const getIconContainerStyle = () => {
     if (variant === 'danger') {
-      return 'bg-[#C2413A]/10 border-[#C2413A]/20 text-[#C2413A]';
+      return 'bg-[#C2413A]/10 border-[#C2413A]/25 text-[#C2413A]';
     }
     if (variant === 'warning') {
-      return 'bg-[#B7791F]/10 border-[#B7791F]/20 text-[#B7791F]';
+      return 'bg-[#B7791F]/10 border-[#B7791F]/25 text-[#B7791F]';
     }
-    return 'bg-[#168060]/10 border-[#168060]/20 text-[#168060]';
+    return 'bg-[#168060]/10 border-[#168060]/25 text-[#168060]';
   };
 
   const getConfirmBtnClass = () => {
@@ -365,22 +331,22 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       size="sm"
       className="p-0"
     >
-      <div className="p-6">
+      <div className="p-6 sm:p-7">
         <div className="flex items-start gap-4">
           <div
-            className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${getIconContainerStyle()}`}
+            className={`w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0 border ${getIconContainerStyle()}`}
           >
             {getIcon()}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-[#171717] tracking-tight">{title}</h3>
-            <div className="text-sm text-[#6B6863] mt-2 leading-relaxed">
+            <h3 className="text-base font-semibold text-[#171717] tracking-tight leading-snug">{title}</h3>
+            <div className="text-sm text-[#716B64] mt-2 leading-relaxed">
               {description}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 mt-6 pt-4 border-t border-[#E6E3DE]">
+        <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-[#E7E4DE]">
           <button
             type="button"
             onClick={onClose}

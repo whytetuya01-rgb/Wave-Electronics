@@ -786,26 +786,26 @@ export const Circuits: React.FC = () => {
         size="2xl"
         headerBanner={
           selectedCircuit ? (
-            <div className="px-6 py-5 bg-[#141414] text-white flex items-center justify-between shrink-0 border-b border-[#252525]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#303030] border border-[#303030] flex items-center justify-center text-[#A69B8D]">
+            <div className="px-6 sm:px-8 py-5 bg-white flex items-center justify-between shrink-0 border-b border-[#E7E4DE]">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-[10px] bg-[#FAF9F7] border border-[#E7E4DE] text-[#807365] flex items-center justify-center shrink-0">
                   <FileSpreadsheet className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-semibold text-white tracking-tight">{selectedCircuit.circuitCode}</h2>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-lg sm:text-[19px] font-semibold text-[#171717] tracking-tight">{selectedCircuit.circuitCode}</h2>
                     <Badge variant="gold">v{selectedCircuit.version}</Badge>
                     <Badge variant={selectedCircuit.status === 'active' ? 'success' : 'neutral'} dot>
                       {selectedCircuit.status === 'active' ? 'Active' : 'Inactive'}
                     </Badge>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">{selectedCircuit.name}</p>
+                  <p className="text-xs sm:text-[13px] text-[#716B64] mt-0.5">{selectedCircuit.name}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowDetailsModal(false)}
-                className="btn-ghost text-slate-400 hover:text-white p-1.5"
+                className="p-2 rounded-[8px] text-[#716B64] hover:text-[#171717] hover:bg-[#FAF9F7] transition-colors"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />

@@ -7,17 +7,17 @@
 @layer base {
   :root {
     /* Primary Black, White & Golden Grey Palette */
-    --primary-black: #141414;
-    --dark-charcoal: #1C1C1C;
+    --primary-black: #171717;
+    --dark-charcoal: #222222;
     --secondary-charcoal: #303030;
     --pure-white: #FFFFFF;
-    --warm-bg: #F7F6F3;
+    --warm-bg: #FAF9F7;
     --soft-grey: #E8E6E2;
     --golden-grey: #A69B8D;
     --deep-golden-grey: #807365;
     --primary-text: #171717;
-    --secondary-text: #6B6863;
-    --border: #E6E3DE;
+    --secondary-text: #716B64;
+    --border: #E7E4DE;
 
     /* Semantic Status Colors */
     --success: #168060;
@@ -198,15 +198,26 @@
 }
 
 /* Inputs & Form Controls with smooth micro-focus feedback */
+.label-enterprise {
+  @apply block text-xs font-semibold uppercase tracking-wider text-[#716B64] mb-1.5 select-none;
+}
+
 .input-enterprise {
-  @apply w-full h-9 px-3 py-1.5 rounded-[9px] border border-[#E6E3DE] bg-white text-sm text-[#171717] placeholder:text-[#A69B8D] focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414];
+  @apply w-full h-10 px-3.5 py-2 rounded-[10px] border border-[#E7E4DE] bg-white text-sm text-[#171717] placeholder:text-[#A69B8D] focus:outline-none focus:ring-2 focus:ring-[#171717]/10 focus:border-[#171717];
   transition: border-color var(--motion-standard) var(--ease-smooth),
               box-shadow var(--motion-standard) var(--ease-smooth),
               background-color var(--motion-standard) var(--ease-smooth);
 }
 
 .select-enterprise {
-  @apply w-full h-9 px-3 py-1.5 rounded-[9px] border border-[#E6E3DE] bg-white text-sm text-[#171717] focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414];
+  @apply w-full h-10 px-3.5 py-2 rounded-[10px] border border-[#E7E4DE] bg-white text-sm text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#171717]/10 focus:border-[#171717];
+  transition: border-color var(--motion-standard) var(--ease-smooth),
+              box-shadow var(--motion-standard) var(--ease-smooth),
+              background-color var(--motion-standard) var(--ease-smooth);
+}
+
+.textarea-enterprise {
+  @apply w-full p-3.5 rounded-[10px] border border-[#E7E4DE] bg-white text-sm text-[#171717] placeholder:text-[#A69B8D] focus:outline-none focus:ring-2 focus:ring-[#171717]/10 focus:border-[#171717];
   transition: border-color var(--motion-standard) var(--ease-smooth),
               box-shadow var(--motion-standard) var(--ease-smooth),
               background-color var(--motion-standard) var(--ease-smooth);

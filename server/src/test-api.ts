@@ -767,6 +767,31 @@ async function runVerification() {
     console.log(`  ✓ CAP: reservedStock +10 as expected`);
     console.log('  ✓ Pass: Approval reserves exact quantities, never touches in-store stock, available stock drops correctly');
 
+    // Test 30b: Approval writes a RESERVE ledger entry per component, with
+    // qtyChange=0 (no physical movement) so it never disturbs the
+    // inStoreStock === sum(ledger qtyChange) invariant verified in Test 2.
+    console.log('\n[Test 30b]: Verifying Approval Writes RESERVE Ledger Entries Excluded From Stock-Balance Math');
+    const reserveLedgerEntries = await StockTransaction.find({ type: 'RESERVE', referenceId: apJobMain._id });
+    const reserveLedgerRes = reserveLedgerEntries.find((l) => l.componentId.toString() === jobResComp._id.toString());
+    const reserveLedgerCap = reserveLedgerEntries.find((l) => l.componentId.toString() === jobCapComp._id.toString());
+    if (!reserveLedgerRes || !reserveLedgerCap) {
+      throw new Error('Expected a RESERVE ledger entry for every reserved component on approval');
+    }
+    if (reserveLedgerRes.qtyChange !== 0 || reserveLedgerCap.qtyChange !== 0) {
+      throw new Error('RESERVE ledger entries must carry qtyChange=0 - reservation is not a physical stock movement');
+    }
+    if (reserveLedgerRes.balanceReservedAfter !== resAfterApproval.reservedStock) {
+      throw new Error('RESERVE ledger entry balanceReservedAfter does not match the component\'s actual reservedStock');
+    }
+    // Re-verify the Test 2 invariant still holds with RESERVE entries present.
+    const allStoreLedgersAfterReserve = await StockTransaction.find({ locationType: 'STORE', componentId: jobResComp._id });
+    const sumAfterReserve = allStoreLedgersAfterReserve.reduce((sum, l) => sum + l.qtyChange, 0);
+    if (sumAfterReserve !== resAfterApproval.inStoreStock) {
+      throw new Error('RESERVE ledger entries incorrectly affected the physical inStoreStock ledger-sum invariant');
+    }
+    console.log(`  ✓ RESERVE ledger entries written for RES and CAP, both with qtyChange=0`);
+    console.log('  ✓ Pass: Reservation ledger entries are audit-only and excluded from physical stock-balance calculations');
+
     // Tests 33-34: Shortage rejection + no partial reservation on failure
     console.log('\n[Test 33-34]: Verifying Shortage Rejection Leaves All Reservations Unchanged');
     const apJobShortage = await makeDraftJob(apCircuitShortage._id, 1); // AMS req=1000, stock ~530
@@ -913,6 +938,30 @@ async function runVerification() {
     if (cancelledResLine?.reservedQty !== 0) throw new Error(`Expected job's RES reservedQty reset to 0, got ${cancelledResLine?.reservedQty}`);
     console.log(`  ✓ RES/CAP reservedStock fully released back to pre-approval levels`);
     console.log('  ✓ Pass: Cancelling an approved job atomically releases all reservations');
+
+    // Test 40b: Cancellation writes an UNRESERVE ledger entry per component
+    // (also qtyChange=0), and the earlier RESERVE entries remain untouched -
+    // the ledger is append-only, cancellation never rewrites history.
+    console.log('\n[Test 40b]: Verifying Cancellation Writes UNRESERVE Ledger Entries, RESERVE History Preserved');
+    const unreserveLedgerEntries = await StockTransaction.find({ type: 'UNRESERVE', referenceId: apJobMain._id });
+    const unreserveLedgerRes = unreserveLedgerEntries.find((l) => l.componentId.toString() === jobResComp._id.toString());
+    const unreserveLedgerCap = unreserveLedgerEntries.find((l) => l.componentId.toString() === jobCapComp._id.toString());
+    if (!unreserveLedgerRes || !unreserveLedgerCap) {
+      throw new Error('Expected an UNRESERVE ledger entry for every released component on cancellation');
+    }
+    if (unreserveLedgerRes.qtyChange !== 0 || unreserveLedgerCap.qtyChange !== 0) {
+      throw new Error('UNRESERVE ledger entries must carry qtyChange=0 - releasing a reservation is not a physical stock movement');
+    }
+    if (unreserveLedgerRes.balanceReservedAfter !== resAfterCancel.reservedStock) {
+      throw new Error('UNRESERVE ledger entry balanceReservedAfter does not match the component\'s actual reservedStock');
+    }
+    const reserveLedgerStillPresent = await StockTransaction.findById(reserveLedgerRes!._id);
+    if (!reserveLedgerStillPresent || reserveLedgerStillPresent.qtyChange !== 0) {
+      throw new Error('The original RESERVE ledger entry was altered or deleted by cancellation - ledger must be append-only');
+    }
+    console.log(`  ✓ UNRESERVE ledger entries written for RES and CAP, both with qtyChange=0`);
+    console.log(`  ✓ Original RESERVE entries from Test 30b are untouched (append-only ledger)`);
+    console.log('  ✓ Pass: Cancellation records UNRESERVE audit entries without rewriting reservation history');
 
     // Test 41: Draft cancellation does not change stock
     console.log('\n[Test 41]: Verifying Draft Cancellation Does Not Change Stock');

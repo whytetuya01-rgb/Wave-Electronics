@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
+import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 import {
   PackageCheck,
   Plus,
@@ -417,48 +418,49 @@ export const StockInward: React.FC = () => {
 
       {/* Inward History Table */}
       <div className="enterprise-card overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-sm text-[#6B6863] flex flex-col items-center gap-2.5">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#141414] border-t-transparent" />
-            <span className="text-xs">Loading stock inward history...</span>
-          </div>
-        ) : filteredInwards.length === 0 ? (
-          <EmptyState
-            icon={PackageCheck}
-            title={search || startDate || endDate ? 'No matching inward records' : 'No stock inward entries recorded'}
-            description={
-              search || startDate || endDate
-                ? 'Try adjusting your filters or date range.'
-                : 'Record your first component shipment to replenish inventory and create ledger entries.'
-            }
-            action={
-              canAddInward && !search
-                ? {
-                    label: 'New Stock Inward',
-                    onClick: handleOpenAddModal,
-                    icon: Plus,
-                  }
-                : undefined
-            }
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr>
+                <th className="th-enterprise">GIN Voucher #</th>
+                <th className="th-enterprise">Inward Date</th>
+                <th className="th-enterprise">Supplier / Source</th>
+                <th className="th-enterprise">Bill / Invoice #</th>
+                <th className="th-enterprise text-center">Line Items</th>
+                <th className="th-enterprise text-right">Total Qty</th>
+                <th className="th-enterprise text-right">Total Amount</th>
+                <th className="th-enterprise">Received By</th>
+                <th className="th-enterprise text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E6E3DE]/60">
+              {loading ? (
+                <TableSkeleton rows={6} cols={9} />
+              ) : filteredInwards.length === 0 ? (
                 <tr>
-                  <th className="th-enterprise">GIN Voucher #</th>
-                  <th className="th-enterprise">Inward Date</th>
-                  <th className="th-enterprise">Supplier / Source</th>
-                  <th className="th-enterprise">Bill / Invoice #</th>
-                  <th className="th-enterprise text-center">Line Items</th>
-                  <th className="th-enterprise text-right">Total Qty</th>
-                  <th className="th-enterprise text-right">Total Amount</th>
-                  <th className="th-enterprise">Received By</th>
-                  <th className="th-enterprise text-right">Action</th>
+                  <td colSpan={9} className="py-12">
+                    <EmptyState
+                      icon={PackageCheck}
+                      title={search || startDate || endDate ? 'No matching inward records' : 'No stock inward entries recorded'}
+                      description={
+                        search || startDate || endDate
+                          ? 'Try adjusting your filters or date range.'
+                          : 'Record your first component shipment to replenish inventory and create ledger entries.'
+                      }
+                      action={
+                        canAddInward && !search
+                          ? {
+                              label: 'New Stock Inward',
+                              onClick: handleOpenAddModal,
+                              icon: Plus,
+                            }
+                          : undefined
+                      }
+                    />
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E6E3DE]/60">
-                {filteredInwards.map((inward) => (
+              ) : (
+                filteredInwards.map((inward) => (
                   <tr key={inward._id} className="tr-enterprise group">
                     <td className="td-enterprise">
                       <button
@@ -503,11 +505,11 @@ export const StockInward: React.FC = () => {
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ADD STOCK INWARD MODAL */}
@@ -533,7 +535,8 @@ export const StockInward: React.FC = () => {
               disabled={submitting}
               className="btn-primary"
             >
-              {submitting ? 'Updating Inventory...' : 'Confirm Inward & Post Stock'}
+              {submitting && <ButtonSpinner />}
+              <span>{submitting ? 'Updating Inventory & Posting...' : 'Confirm Inward & Post Stock'}</span>
             </button>
           </>
         }

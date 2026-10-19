@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { FolderTree, Ruler, MapPin, Plus, Trash2, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/Modal';
+import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 
 export const Masters: React.FC = () => {
   const { isStoreKeeper, isAdmin } = useAuth();
@@ -260,24 +261,34 @@ export const Masters: React.FC = () => {
                   {isAdmin && <th className="table-compact-th text-right">Action</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {categories.map((cat) => (
-                  <tr key={cat._id} className="table-row-interactive">
-                    <td className="table-compact-td font-semibold text-slate-900">{cat.name}</td>
-                    <td className="table-compact-td text-slate-500 text-xs">{cat.description || '-'}</td>
-                    {isAdmin && (
-                      <td className="table-compact-td text-right">
-                        <button
-                          onClick={() => handleDeleteCategory(cat)}
-                          title="Delete Category"
-                          className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    )}
+              <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
+                {loading ? (
+                  <TableSkeleton rows={4} cols={isAdmin ? 3 : 2} />
+                ) : categories.length === 0 ? (
+                  <tr>
+                    <td colSpan={isAdmin ? 3 : 2} className="py-8 text-center text-xs text-[#716B64]">
+                      No categories added yet
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  categories.map((cat) => (
+                    <tr key={cat._id} className="table-row-interactive">
+                      <td className="table-compact-td font-semibold text-slate-900">{cat.name}</td>
+                      <td className="table-compact-td text-slate-500 text-xs">{cat.description || '-'}</td>
+                      {isAdmin && (
+                        <td className="table-compact-td text-right">
+                          <button
+                            onClick={() => handleDeleteCategory(cat)}
+                            title="Delete Category"
+                            className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -330,24 +341,34 @@ export const Masters: React.FC = () => {
                   {isAdmin && <th className="table-compact-th text-right">Action</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {units.map((u) => (
-                  <tr key={u._id} className="table-row-interactive">
-                    <td className="table-compact-td font-semibold text-slate-900">{u.name}</td>
-                    <td className="table-compact-td font-mono font-bold text-[#4F46E5]">{u.shortCode}</td>
-                    {isAdmin && (
-                      <td className="table-compact-td text-right">
-                        <button
-                          onClick={() => handleDeleteUnit(u)}
-                          title="Delete Unit"
-                          className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    )}
+              <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
+                {loading ? (
+                  <TableSkeleton rows={4} cols={isAdmin ? 3 : 2} />
+                ) : units.length === 0 ? (
+                  <tr>
+                    <td colSpan={isAdmin ? 3 : 2} className="py-8 text-center text-xs text-[#716B64]">
+                      No units added yet
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  units.map((u) => (
+                    <tr key={u._id} className="table-row-interactive">
+                      <td className="table-compact-td font-semibold text-slate-900">{u.name}</td>
+                      <td className="table-compact-td font-mono font-bold text-[#4F46E5]">{u.shortCode}</td>
+                      {isAdmin && (
+                        <td className="table-compact-td text-right">
+                          <button
+                            onClick={() => handleDeleteUnit(u)}
+                            title="Delete Unit"
+                            className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -410,25 +431,35 @@ export const Masters: React.FC = () => {
                   {isAdmin && <th className="table-compact-th text-right">Action</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {locations.map((l) => (
-                  <tr key={l._id} className="table-row-interactive">
-                    <td className="table-compact-td font-semibold text-slate-900">{l.name}</td>
-                    <td className="table-compact-td text-slate-500 text-xs">{l.zone || '-'}</td>
-                    <td className="table-compact-td text-slate-500 text-xs">{l.description || '-'}</td>
-                    {isAdmin && (
-                      <td className="table-compact-td text-right">
-                        <button
-                          onClick={() => handleDeleteLocation(l)}
-                          title="Delete Location"
-                          className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    )}
+              <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
+                {loading ? (
+                  <TableSkeleton rows={4} cols={isAdmin ? 4 : 3} />
+                ) : locations.length === 0 ? (
+                  <tr>
+                    <td colSpan={isAdmin ? 4 : 3} className="py-8 text-center text-xs text-[#716B64]">
+                      No storage locations added yet
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  locations.map((l) => (
+                    <tr key={l._id} className="table-row-interactive">
+                      <td className="table-compact-td font-semibold text-slate-900">{l.name}</td>
+                      <td className="table-compact-td text-slate-500 text-xs">{l.zone || '-'}</td>
+                      <td className="table-compact-td text-slate-500 text-xs">{l.description || '-'}</td>
+                      {isAdmin && (
+                        <td className="table-compact-td text-right">
+                          <button
+                            onClick={() => handleDeleteLocation(l)}
+                            title="Delete Location"
+                            className="btn-linear-ghost p-1 text-slate-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

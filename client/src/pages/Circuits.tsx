@@ -5,6 +5,7 @@ import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
+import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 import {
   FileSpreadsheet,
   Plus,
@@ -433,38 +434,39 @@ export const Circuits: React.FC = () => {
 
       {/* Circuits Table */}
       <div className="enterprise-card overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-sm text-[#6B6863] flex flex-col items-center gap-2.5">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#141414] border-t-transparent" />
-            <span className="text-xs">Loading circuit catalog...</span>
-          </div>
-        ) : circuits.length === 0 ? (
-          <EmptyState
-            icon={FileSpreadsheet}
-            title={search ? 'No matching circuits found' : 'No circuits defined yet'}
-            description={
-              search
-                ? 'Try adjusting your search or status filter.'
-                : 'Define your first circuit BOM to start calculating material cost and buildable quantity.'
-            }
-            action={canEdit && !search ? { label: 'Add Circuit', onClick: handleOpenAdd, icon: Plus } : undefined}
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr>
+                <th className="th-enterprise">Circuit</th>
+                <th className="th-enterprise">Version</th>
+                <th className="th-enterprise text-right">Components</th>
+                <th className="th-enterprise text-right">Material Cost / Unit</th>
+                <th className="th-enterprise text-right">Max Buildable</th>
+                <th className="th-enterprise text-center">Status</th>
+                <th className="th-enterprise text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E6E3DE]">
+              {loading ? (
+                <TableSkeleton rows={6} cols={7} />
+              ) : circuits.length === 0 ? (
                 <tr>
-                  <th className="th-enterprise">Circuit</th>
-                  <th className="th-enterprise">Version</th>
-                  <th className="th-enterprise text-right">Components</th>
-                  <th className="th-enterprise text-right">Material Cost / Unit</th>
-                  <th className="th-enterprise text-right">Max Buildable</th>
-                  <th className="th-enterprise text-center">Status</th>
-                  <th className="th-enterprise text-right">Actions</th>
+                  <td colSpan={7} className="py-12">
+                    <EmptyState
+                      icon={FileSpreadsheet}
+                      title={search ? 'No matching circuits found' : 'No circuits defined yet'}
+                      description={
+                        search
+                          ? 'Try adjusting your search or status filter.'
+                          : 'Define your first circuit BOM to start calculating material cost and buildable quantity.'
+                      }
+                      action={canEdit && !search ? { label: 'Add Circuit', onClick: handleOpenAdd, icon: Plus } : undefined}
+                    />
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E6E3DE]">
-                {circuits.map((c) => (
+              ) : (
+                circuits.map((c) => (
                   <tr key={c._id} className="tr-enterprise group">
                     <td className="td-enterprise">
                       <div className="font-mono font-semibold text-[#171717]">{c.circuitCode}</div>
@@ -535,11 +537,11 @@ export const Circuits: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ============ ADD / EDIT CIRCUIT MODAL (BOM Builder) ============ */}
@@ -565,7 +567,8 @@ export const Circuits: React.FC = () => {
               disabled={submitting}
               className="btn-primary"
             >
-              {submitting ? 'Saving...' : formMode === 'add' ? 'Save Circuit' : 'Save Changes'}
+              {submitting && <ButtonSpinner />}
+              <span>{submitting ? 'Saving...' : formMode === 'add' ? 'Save Circuit' : 'Save Changes'}</span>
             </button>
           </>
         }

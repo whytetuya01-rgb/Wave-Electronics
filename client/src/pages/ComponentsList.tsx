@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/ui/Modal';
+import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 import {
   Cpu,
   Plus,
@@ -311,38 +312,35 @@ export const ComponentsList: React.FC = () => {
 
       {/* Compact, Highly Readable Data Table (Attio & Linear Inspired) */}
       <div className="shadcn-card overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-xs text-slate-500">Loading catalog...</span>
-            </div>
-          </div>
-        ) : components.length === 0 ? (
-          <div className="text-center py-16">
-            <Cpu className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
-            <h3 className="text-xs font-bold text-slate-700">No components match your query</h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">Try resetting search filters or create a new part.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="sticky top-0 z-10 bg-slate-50/95">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-[#E7E4DE]">
+            <thead className="sticky top-0 z-10 bg-[#FAF9F7]/95">
+              <tr>
+                <th className="table-compact-th">Part Code</th>
+                <th className="table-compact-th">Component Name</th>
+                <th className="table-compact-th">Category</th>
+                <th className="table-compact-th">Footprint</th>
+                <th className="table-compact-th text-right">In Store</th>
+                <th className="table-compact-th text-right">Reserved</th>
+                <th className="table-compact-th text-right">Available</th>
+                <th className="table-compact-th text-right">Rate</th>
+                <th className="table-compact-th">Location</th>
+                <th className="table-compact-th text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
+              {loading ? (
+                <TableSkeleton rows={8} cols={10} />
+              ) : components.length === 0 ? (
                 <tr>
-                  <th className="table-compact-th">Part Code</th>
-                  <th className="table-compact-th">Component Name</th>
-                  <th className="table-compact-th">Category</th>
-                  <th className="table-compact-th">Footprint</th>
-                  <th className="table-compact-th text-right">In Store</th>
-                  <th className="table-compact-th text-right">Reserved</th>
-                  <th className="table-compact-th text-right">Available</th>
-                  <th className="table-compact-th text-right">Rate</th>
-                  <th className="table-compact-th">Location</th>
-                  <th className="table-compact-th text-center">Actions</th>
+                  <td colSpan={10} className="text-center py-16">
+                    <Cpu className="w-8 h-8 text-[#A69B8D] mx-auto mb-2 opacity-60" />
+                    <h3 className="text-xs font-bold text-[#171717]">No components match your query</h3>
+                    <p className="text-[11px] text-[#716B64] mt-0.5">Try resetting search filters or create a new part.</p>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {components.map((comp) => {
+              ) : (
+                components.map((comp) => {
                   const isLow = comp.inStoreStock <= comp.minStock;
                   return (
                     <tr key={comp._id} className="table-row-interactive">
@@ -440,11 +438,11 @@ export const ComponentsList: React.FC = () => {
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ================= MODAL: ADD COMPONENT ================= */}
@@ -470,7 +468,8 @@ export const ComponentsList: React.FC = () => {
               disabled={submitting}
               className="btn-primary"
             >
-              {submitting ? 'Saving...' : 'Save Component'}
+              {submitting && <ButtonSpinner />}
+              <span>{submitting ? 'Saving Component...' : 'Save Component'}</span>
             </button>
           </>
         }
@@ -702,7 +701,8 @@ export const ComponentsList: React.FC = () => {
                 disabled={submitting || adjustData.qtyChange === 0}
                 className="btn-primary"
               >
-                {submitting ? 'Saving...' : 'Commit to Ledger'}
+                {submitting && <ButtonSpinner />}
+                <span>{submitting ? 'Committing...' : 'Commit to Ledger'}</span>
               </button>
             </>
           }

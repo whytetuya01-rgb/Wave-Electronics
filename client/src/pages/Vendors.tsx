@@ -5,6 +5,7 @@ import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Badge } from '../components/ui/Badge';
 import { Modal, ConfirmModal } from '../components/ui/Modal';
+import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 import {
   Truck,
   Plus,
@@ -56,6 +57,7 @@ export const Vendors: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -163,6 +165,7 @@ export const Vendors: React.FC = () => {
   const handleCreateVendor = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+    setIsSaving(true);
     try {
       const circuitsArray = formData.circuitsCanAssemble
         .split(',')
@@ -180,6 +183,8 @@ export const Vendors: React.FC = () => {
       fetchVendors();
     } catch (err: any) {
       setErrorMsg(err.response?.data?.message || 'Failed to create vendor');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -187,6 +192,7 @@ export const Vendors: React.FC = () => {
     e.preventDefault();
     if (!selectedVendor) return;
     setErrorMsg('');
+    setIsSaving(true);
     try {
       const circuitsArray = formData.circuitsCanAssemble
         .split(',')
@@ -203,6 +209,8 @@ export const Vendors: React.FC = () => {
       fetchVendors();
     } catch (err: any) {
       setErrorMsg(err.response?.data?.message || 'Failed to update vendor');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -420,47 +428,48 @@ export const Vendors: React.FC = () => {
 
       {/* Data Table Container */}
       <div className="enterprise-card overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-sm text-[#6B6863] flex flex-col items-center gap-2.5">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#141414] border-t-transparent" />
-            <span className="text-xs">Loading assemblers catalog...</span>
-          </div>
-        ) : filteredVendors.length === 0 ? (
-          <EmptyState
-            icon={Truck}
-            title={search ? 'No matching vendors found' : 'No assembler vendors onboarded'}
-            description={
-              search
-                ? 'Try adjusting your search criteria or resetting filters.'
-                : 'Get started by registering your first PCB assembly or job-work partner.'
-            }
-            action={
-              canEdit && !search
-                ? {
-                    label: 'Add Assembler Vendor',
-                    onClick: handleOpenAdd,
-                    icon: Plus,
-                  }
-                : undefined
-            }
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr>
+                <th className="th-enterprise">Assembler Company</th>
+                <th className="th-enterprise">Contact Info</th>
+                <th className="th-enterprise">Location</th>
+                <th className="th-enterprise">GSTIN</th>
+                <th className="th-enterprise text-right">Job-Work Rate</th>
+                <th className="th-enterprise">Circuits / Capabilities</th>
+                <th className="th-enterprise text-center">Status</th>
+                <th className="th-enterprise text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E6E3DE]/60">
+              {loading ? (
+                <TableSkeleton rows={6} cols={8} />
+              ) : filteredVendors.length === 0 ? (
                 <tr>
-                  <th className="th-enterprise">Assembler Company</th>
-                  <th className="th-enterprise">Contact Info</th>
-                  <th className="th-enterprise">Location</th>
-                  <th className="th-enterprise">GSTIN</th>
-                  <th className="th-enterprise text-right">Job-Work Rate</th>
-                  <th className="th-enterprise">Circuits / Capabilities</th>
-                  <th className="th-enterprise text-center">Status</th>
-                  <th className="th-enterprise text-right">Actions</th>
+                  <td colSpan={8} className="py-12">
+                    <EmptyState
+                      icon={Truck}
+                      title={search ? 'No matching vendors found' : 'No assembler vendors onboarded'}
+                      description={
+                        search
+                          ? 'Try adjusting your search criteria or resetting filters.'
+                          : 'Get started by registering your first PCB assembly or job-work partner.'
+                      }
+                      action={
+                        canEdit && !search
+                          ? {
+                              label: 'Add Assembler Vendor',
+                              onClick: handleOpenAdd,
+                              icon: Plus,
+                            }
+                          : undefined
+                      }
+                    />
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E6E3DE]/60">
-                {filteredVendors.map((vendor) => (
+              ) : (
+                filteredVendors.map((vendor) => (
                   <tr key={vendor._id} className="tr-enterprise group">
                     <td className="td-enterprise">
                       <div className="font-semibold text-[#171717] group-hover:text-[#807365] transition-colors">
@@ -587,11 +596,11 @@ export const Vendors: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ADD / EDIT VENDOR DIALOG */}
@@ -620,9 +629,11 @@ export const Vendors: React.FC = () => {
             </button>
             <button
               type="submit"
+              disabled={isSaving}
               className="btn-primary"
             >
-              {showAddModal ? 'Save Assembler' : 'Save Changes'}
+              {isSaving && <ButtonSpinner />}
+              <span>{isSaving ? 'Saving...' : (showAddModal ? 'Save Assembler' : 'Save Changes')}</span>
             </button>
           </>
         }

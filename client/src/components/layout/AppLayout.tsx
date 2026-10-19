@@ -21,6 +21,7 @@ import {
   Zap,
   PanelLeftClose,
   PanelLeft,
+  ChevronDown,
 } from 'lucide-react';
 
 interface NavItem {
@@ -41,6 +42,34 @@ export const AppLayout: React.FC = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  // Mobile menu scroll lock and keyboard accessibility
+  React.useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
+  const toggleGroup = (title: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [title]: !prev[title],
+    }));
+  };
 
   // Business-Centric Navigation Groups
   const navigationGroups: NavGroup[] = [
@@ -125,106 +154,207 @@ export const AppLayout: React.FC = () => {
   const breadcrumbs = getBreadcrumbs();
 
   const renderSidebarContent = (isCollapsed: boolean = false) => (
-    <div className="flex flex-col h-full bg-[#141414] text-[#E8E6E2] select-none border-r border-[#252525]">
+    <div className="flex flex-col h-full bg-[#141414] text-[#E8E6E2] select-none border-r border-[#252525] overflow-hidden">
       {/* Brand Header */}
-      <div className={`h-14 ${isCollapsed ? 'px-2 justify-center' : 'px-4 justify-between'} flex items-center border-b border-[#252525] transition-all duration-240 ease-smooth`}>
+      <div
+        className={`h-14 ${
+          isCollapsed ? 'px-2 justify-center' : 'px-4 justify-between'
+        } flex items-center border-b border-[#252525] transition-all duration-240 ease-smooth`}
+      >
         <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-7 h-7 rounded-[8px] bg-white text-[#141414] flex items-center justify-center shadow-xs shrink-0 transition-transform duration-180 ease-smooth hover:scale-105">
-            <Zap className="w-4 h-4 fill-current text-[#141414]" />
+          <div className="w-8 h-8 rounded-[8px] bg-white text-[#141414] flex items-center justify-center shadow-xs shrink-0 transition-transform duration-180 ease-smooth hover:scale-105">
+            <Zap className="w-4.5 h-4.5 fill-current text-[#141414]" />
           </div>
           {!isCollapsed && (
             <div className="truncate transition-opacity duration-200">
               <span className="text-[14px] font-semibold text-white tracking-tight leading-none block truncate">
                 Wave Electronics
               </span>
-              <p className="text-[11px] text-[#A69B8D] mt-0.5 leading-none truncate">Stock & Job System</p>
+              <p className="text-[11px] text-[#A69B8D] mt-0.5 leading-none truncate">
+                Stock &amp; Job System
+              </p>
             </div>
           )}
         </div>
         {!isCollapsed && (
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#168060] shadow-[0_0_6px_#168060]" title="System Operational" />
+            <span
+              className="w-2 h-2 rounded-full bg-[#168060] shadow-[0_0_6px_#168060]"
+              title="System Operational"
+            />
           </div>
         )}
       </div>
 
       {/* Nav Items */}
-      <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-3'} py-4 space-y-5 overflow-y-auto overflow-x-hidden`}>
-        {navigationGroups.map((group) => (
-          <div key={group.title}>
-            {isCollapsed ? (
-              <div className="h-[1px] bg-[#252525] my-2 mx-1" />
-            ) : (
-              <div className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#A69B8D] truncate">
-                {group.title}
-              </div>
-            )}
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const isActive = location.pathname === item.href;
-                const Icon = item.icon;
+      <nav
+        className={`flex-1 ${
+          isCollapsed ? 'px-2' : 'px-3'
+        } py-3 space-y-4 overflow-y-auto overflow-x-hidden`}
+      >
+        {navigationGroups.map((group) => {
+          const isGroupActive = group.items.some(
+            (item) => location.pathname === item.href
+          );
+          const isGroupCollapsed =
+            Boolean(collapsedGroups[group.title]) && !isGroupActive;
 
-                if (item.disabled) {
-                  return (
-                    <div
-                      key={item.name}
-                      title={item.name}
-                      className={`flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-2.5'} py-2 rounded-[8px] text-[13px] font-medium text-[#6B6863] opacity-60 cursor-not-allowed`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Icon className="w-4 h-4 text-[#6B6863] shrink-0" />
-                        {!isCollapsed && <span>{item.name}</span>}
-                      </div>
-                      {!isCollapsed && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1C1C1C] text-[#807365] border border-[#282725]">
-                          Planned
-                        </span>
-                      )}
-                    </div>
-                  );
+          return (
+            <div key={group.title} className="space-y-1">
+              {isCollapsed ? (
+                <div className="h-[1px] bg-[#252525] my-2 mx-1" />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.title)}
+                  className="w-full flex items-center justify-between px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#A69B8D] hover:text-white transition-colors duration-180 rounded-[6px] group"
+                >
+                  <span className="truncate">{group.title}</span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-[#807365] group-hover:text-[#A69B8D] transition-transform duration-200 ease-smooth ${
+                      isGroupCollapsed ? '-rotate-90' : 'rotate-0'
+                    }`}
+                  />
+                </button>
+              )}
+
+              {/* Smooth Collapsible Submenu Container */}
+              <div
+                className={
+                  isCollapsed
+                    ? 'space-y-1'
+                    : `grid transition-[grid-template-rows,opacity] duration-200 ease-smooth ${
+                        isGroupCollapsed
+                          ? 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                          : 'grid-rows-[1fr] opacity-100'
+                      }`
                 }
+              >
+                <div className={isCollapsed ? 'space-y-1' : 'overflow-hidden space-y-0.5'}>
+                  {group.items.map((item) => {
+                    const isActive = location.pathname === item.href;
+                    const Icon = item.icon;
 
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    title={isCollapsed ? item.name : undefined}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`group flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-2.5'} py-2 rounded-[8px] text-[13px] font-medium transition-all duration-180 ease-smooth active:scale-[0.98] ${isActive
-                        ? 'bg-[#1F1E1D] text-white border border-[#807365]/35 shadow-xs'
-                        : 'text-[#E8E6E2] hover:text-white hover:bg-[#1C1C1C]'
-                      }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <Icon
-                        className={`w-4 h-4 shrink-0 transition-colors duration-180 ease-smooth ${isActive ? 'text-[#A69B8D]' : 'text-[#807365] group-hover:text-[#A69B8D]'
-                          }`}
-                      />
-                      {!isCollapsed && <span className="truncate">{item.name}</span>}
-                    </div>
-                    {!isCollapsed && item.badge && (
-                      <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[#1C1C1C] text-[#A69B8D] border border-[#282725]">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
+                    if (item.disabled) {
+                      return (
+                        <div
+                          key={item.name}
+                          title={item.name}
+                          className={`flex items-center ${
+                            isCollapsed
+                              ? 'justify-center w-10 h-10 mx-auto'
+                              : 'justify-between px-3 py-2'
+                          } rounded-[8px] text-[13px] font-medium text-[#6B6863] opacity-60 cursor-not-allowed`}
+                        >
+                          <Icon className="w-4 h-4 text-[#6B6863] shrink-0" />
+                          {!isCollapsed && <span>{item.name}</span>}
+                        </div>
+                      );
+                    }
+
+                    if (isCollapsed) {
+                      return (
+                        <div key={item.name} className="relative group/nav flex justify-center py-0.5">
+                          <Link
+                            to={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`w-10 h-10 flex items-center justify-center rounded-[8px] text-[13px] font-medium transition-all duration-180 ease-smooth relative ${
+                              isActive
+                                ? 'bg-[#1F1E1D] text-white border border-[#A69B8D]/40 shadow-xs'
+                                : 'text-[#E8E6E2] hover:text-white hover:bg-[#1C1C1C]'
+                            }`}
+                            aria-label={item.name}
+                          >
+                            {isActive && (
+                              <span
+                                className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-4 rounded-full bg-[#A69B8D] shadow-[0_0_6px_rgba(166,155,141,0.6)]"
+                                aria-hidden="true"
+                              />
+                            )}
+                            <Icon
+                              className={`w-4 h-4 shrink-0 transition-colors duration-180 ease-smooth ${
+                                isActive
+                                  ? 'text-[#A69B8D]'
+                                  : 'text-[#807365] group-hover/nav:text-[#A69B8D]'
+                              }`}
+                            />
+                          </Link>
+                          {/* Floating Hover Tooltip */}
+                          <div className="sidebar-tooltip opacity-0 group-hover/nav:opacity-100 flex items-center gap-1.5 shadow-xl">
+                            <span>{item.name}</span>
+                            {item.badge && (
+                              <span className="text-[10px] text-[#A69B8D] font-mono">
+                                ({item.badge})
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`group relative flex items-center justify-between px-3 py-2 rounded-[8px] text-[13px] font-medium transition-all duration-180 ease-smooth active:scale-[0.99] ${
+                          isActive
+                            ? 'bg-[#1F1E1D] text-white border border-[#807365]/35 shadow-xs pl-4'
+                            : 'text-[#E8E6E2] hover:text-white hover:bg-[#1C1C1C]'
+                        }`}
+                      >
+                        {/* Animated Active Golden-Grey Indicator Pill */}
+                        {isActive && (
+                          <span
+                            className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-4.5 rounded-full bg-[#A69B8D] shadow-[0_0_8px_rgba(166,155,141,0.6)]"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <div className="flex items-center gap-2.5 truncate">
+                          <Icon
+                            className={`w-4 h-4 shrink-0 transition-colors duration-180 ease-smooth ${
+                              isActive
+                                ? 'text-[#A69B8D]'
+                                : 'text-[#807365] group-hover:text-[#A69B8D]'
+                            }`}
+                          />
+                          <span className="truncate">{item.name}</span>
+                        </div>
+                        {item.badge && (
+                          <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[#1C1C1C] text-[#A69B8D] border border-[#282725]">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* User Account / Footer */}
-      <div className={`p-3 border-t border-[#252525] bg-[#111111] ${isCollapsed ? 'flex flex-col items-center gap-2' : ''}`}>
-        <div className={`flex items-center ${isCollapsed ? 'flex-col gap-2' : 'justify-between'}`}>
+      <div
+        className={`p-3 border-t border-[#252525] bg-[#111111] ${
+          isCollapsed ? 'flex flex-col items-center gap-2' : ''
+        }`}
+      >
+        <div
+          className={`flex items-center ${
+            isCollapsed ? 'flex-col gap-2' : 'justify-between'
+          }`}
+        >
           <div className="flex items-center gap-2.5 truncate">
             <div className="w-8 h-8 rounded-[8px] bg-[#222222] border border-[#303030] flex items-center justify-center font-semibold text-xs text-[#E8E6E2] shrink-0 transition-transform duration-180 hover:scale-105">
               {user?.name?.charAt(0) || 'U'}
             </div>
             {!isCollapsed && (
               <div className="truncate transition-opacity duration-200">
-                <p className="text-[13px] font-medium text-white truncate leading-tight">{user?.name}</p>
+                <p className="text-[13px] font-medium text-white truncate leading-tight">
+                  {user?.name}
+                </p>
                 <div className="mt-0.5">{getRoleBadge(user?.role)}</div>
               </div>
             )}
@@ -233,6 +363,7 @@ export const AppLayout: React.FC = () => {
             onClick={logout}
             title="Sign Out"
             className="p-1.5 rounded-[8px] text-[#A69B8D] hover:text-white hover:bg-[#1C1C1C] transition-all duration-180 ease-smooth active:scale-95"
+            aria-label="Sign Out"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -245,20 +376,22 @@ export const AppLayout: React.FC = () => {
     <div className="flex h-screen bg-[#F7F6F3] text-[#171717] overflow-hidden font-sans">
       {/* Desktop Sidebar with fluid collapse transition */}
       <aside
-        className={`hidden lg:flex flex-col z-20 flex-shrink-0 transition-all duration-240 ease-smooth ${collapsed ? 'w-[68px]' : 'w-64'
-          }`}
+        className={`hidden lg:flex flex-col z-20 flex-shrink-0 transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          collapsed ? 'w-[72px]' : 'w-64'
+        }`}
       >
         {renderSidebarContent(collapsed)}
       </aside>
 
       {/* Mobile Sidebar Overlay Drawer */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
           <div
             className="fixed inset-0 bg-black/60 modal-backdrop-animate backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
           />
-          <div className="fixed inset-y-0 left-0 w-64 shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
+          <div className="fixed inset-y-0 left-0 w-72 shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
             {renderSidebarContent(false)}
           </div>
         </div>

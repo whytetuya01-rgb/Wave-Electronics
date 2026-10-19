@@ -10,19 +10,14 @@ import { Vendors } from './pages/Vendors';
 import { StockInward } from './pages/StockInward';
 import { Circuits } from './pages/Circuits';
 import { Jobs } from './pages/Jobs';
+import { AppLoader } from './components/ui/Loading';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F7F6F3] text-[#171717]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#141414] border-t-transparent"></div>
-          <span className="text-xs text-[#6B6863] font-medium tracking-wide">Loading Wave Electronics...</span>
-        </div>
-      </div>
-    );
+    return <AppLoader message="Authenticating session..." />;
   }
 
   if (!user) {
@@ -43,17 +38,19 @@ export const App: React.FC = () => {
             path="/"
             element={
               <ProtectedRoute>
-                <AppLayout />
+                <ErrorBoundary label="the application">
+                  <AppLayout />
+                </ErrorBoundary>
               </ProtectedRoute>
             }
           >
-            <Route index element={<Dashboard />} />
-            <Route path="components" element={<ComponentsList />} />
-            <Route path="stock-inward" element={<StockInward />} />
-            <Route path="vendors" element={<Vendors />} />
-            <Route path="circuits" element={<Circuits />} />
-            <Route path="jobs" element={<Jobs />} />
-            <Route path="masters" element={<Masters />} />
+            <Route index element={<ErrorBoundary label="Dashboard"><Dashboard /></ErrorBoundary>} />
+            <Route path="components" element={<ErrorBoundary label="Components"><ComponentsList /></ErrorBoundary>} />
+            <Route path="stock-inward" element={<ErrorBoundary label="Stock Inward"><StockInward /></ErrorBoundary>} />
+            <Route path="vendors" element={<ErrorBoundary label="Vendors"><Vendors /></ErrorBoundary>} />
+            <Route path="circuits" element={<ErrorBoundary label="Circuits"><Circuits /></ErrorBoundary>} />
+            <Route path="jobs" element={<ErrorBoundary label="Jobs"><Jobs /></ErrorBoundary>} />
+            <Route path="masters" element={<ErrorBoundary label="Masters"><Masters /></ErrorBoundary>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

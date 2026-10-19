@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { StatCard } from '../components/ui/StatCard';
+import { DashboardSkeleton } from '../components/ui/Loading';
 import {
   Cpu,
   AlertTriangle,
@@ -61,6 +62,10 @@ export const Dashboard: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

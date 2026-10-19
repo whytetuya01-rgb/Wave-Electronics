@@ -10,6 +10,8 @@ import { Vendors } from './pages/Vendors';
 import { StockInward } from './pages/StockInward';
 import { Circuits } from './pages/Circuits';
 import { Jobs } from './pages/Jobs';
+import { FinishedGoods } from './pages/FinishedGoods';
+import { Reports } from './pages/Reports';
 import { AppLoader } from './components/ui/Loading';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
@@ -50,6 +52,8 @@ export const App: React.FC = () => {
             <Route path="vendors" element={<ErrorBoundary label="Vendors"><Vendors /></ErrorBoundary>} />
             <Route path="circuits" element={<ErrorBoundary label="Circuits"><Circuits /></ErrorBoundary>} />
             <Route path="jobs" element={<ErrorBoundary label="Jobs"><Jobs /></ErrorBoundary>} />
+            <Route path="finished-goods" element={<ErrorBoundary label="Finished Goods"><FinishedGoods /></ErrorBoundary>} />
+            <Route path="reports" element={<ErrorBoundary label="Reports"><Reports /></ErrorBoundary>} />
             <Route path="masters" element={<ErrorBoundary label="Masters"><Masters /></ErrorBoundary>} />
           </Route>
 

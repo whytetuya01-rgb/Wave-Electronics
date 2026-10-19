@@ -15,6 +15,8 @@ import stockInwardRoutes from './routes/stockInwardRoutes.js';
 import circuitRoutes from './routes/circuitRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
 import challanRoutes from './routes/challanRoutes.js';
+import finishedGoodsRoutes from './routes/finishedGoodsRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 
 // Fail fast and loud on a misconfigured production environment - before
 // binding a port or touching the database - rather than silently running
@@ -106,6 +108,8 @@ app.use('/api/stock-inward', stockInwardRoutes);
 app.use('/api/circuits', circuitRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/challans', challanRoutes);
+app.use('/api/finished-goods', finishedGoodsRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Global 404 handler
 app.use((req: Request, res: Response) => {

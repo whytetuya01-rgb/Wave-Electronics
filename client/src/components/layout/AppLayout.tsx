@@ -22,6 +22,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   ChevronDown,
+  Boxes,
+  BarChart3,
 } from 'lucide-react';
 
 interface NavItem {
@@ -92,6 +94,13 @@ export const AppLayout: React.FC = () => {
         { name: 'Vendors (Assemblers)', href: '/vendors', icon: Truck },
         { name: 'Circuit BOM Recipes', href: '/circuits', icon: FileSpreadsheet },
         { name: 'Jobs & Challans', href: '/jobs', icon: Workflow },
+        { name: 'Finished Goods', href: '/finished-goods', icon: Boxes },
+      ],
+    },
+    {
+      title: 'Intelligence & Reports',
+      items: [
+        { name: 'Reports & Analytics', href: '/reports', icon: BarChart3 },
       ],
     },
     {
@@ -116,6 +125,10 @@ export const AppLayout: React.FC = () => {
         return ['Manufacturing & Job Work', 'Circuit BOM Recipes'];
       case '/jobs':
         return ['Manufacturing & Job Work', 'Jobs & Challans'];
+      case '/finished-goods':
+        return ['Manufacturing & Job Work', 'Finished Goods Inventory'];
+      case '/reports':
+        return ['Intelligence & Reports', 'Reports & Analytics'];
       case '/masters':
         return ['Administration', 'Master Data'];
       default:

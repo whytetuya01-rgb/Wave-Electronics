@@ -194,7 +194,13 @@ export const Jobs: React.FC = () => {
         const compId = typeof comp === 'object' ? comp._id : comp;
         const partCode = typeof comp === 'object' ? comp.partCode : item.partCode || '—';
         const name = typeof comp === 'object' ? comp.name : item.name || '—';
-        const availableStock = typeof comp === 'object' ? comp.availableStock ?? 0 : 0;
+        // GET /circuits/:id populates inStoreStock/reservedStock on
+        // bomItems[].componentId, but never a computed availableStock field
+        // (that only exists on the sibling bomAvailability array) - compute
+        // it the same way Circuits.tsx's own BOM builder does, instead of
+        // reading a field that's never actually present.
+        const availableStock =
+          typeof comp === 'object' ? Math.max(0, (comp.inStoreStock || 0) - (comp.reservedStock || 0)) : 0;
         const ratePerUnit = typeof comp === 'object' ? comp.ratePerUnit ?? 0 : 0;
         const req = (item.qtyPerUnit || 1) * row.orderedQty;
 
@@ -843,7 +849,7 @@ export const Jobs: React.FC = () => {
             placeholder="Search job number..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input-enterprise pl-9"
+            className="input-enterprise !pl-9"
           />
         </div>
         <select

@@ -3,7 +3,7 @@ import { Modal } from '../ui/Modal';
 import { Badge } from '../ui/Badge';
 import { ButtonSpinner } from '../ui/Loading';
 import { Workflow, Receipt, Lock, FileDown, ClipboardCheck } from 'lucide-react';
-import { ChallanSummary, JobReceiptSummary, ReconciliationData, CHALLAN_STATUS_LABEL } from './jobTypes';
+import { ChallanSummary, JobReceiptSummary, ReconciliationData, CHALLAN_STATUS_LABEL, STATUS_LABEL } from './jobTypes';
 import { JobReconciliationPanel } from './JobReconciliationPanel';
 
 interface JobDetailsModalProps {
@@ -58,7 +58,7 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
           <div className="flex items-center gap-3 text-xs mt-1">
             <span>Vendor: <strong>{detailedJob.vendorId?.name}</strong></span>
             <span>•</span>
-            <span>Status: <strong className="capitalize">{detailedJob.status}</strong></span>
+            <span>Status: <strong>{STATUS_LABEL[detailedJob.status] || detailedJob.status}</strong></span>
           </div>
         )
       }

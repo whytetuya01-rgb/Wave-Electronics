@@ -387,7 +387,7 @@ export const Vendors: React.FC = () => {
             placeholder="Search vendor, contact, city, GSTIN..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input-enterprise pl-9"
+            className="input-enterprise !pl-9"
           />
         </div>
 
@@ -755,7 +755,7 @@ export const Vendors: React.FC = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, defaultJobWorkRate: parseFloat(e.target.value) || 0 })
                       }
-                      className="input-enterprise pl-7 font-mono"
+                      className="input-enterprise !pl-7 font-mono"
                     />
                   </div>
                 </div>

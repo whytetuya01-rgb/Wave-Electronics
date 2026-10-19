@@ -67,7 +67,7 @@ export const Login: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="name@wave.com"
-                  className="input-enterprise !h-10 pl-10 pr-3.5 text-sm"
+                  className="input-enterprise !h-10 !pl-10 !pr-3.5 text-sm"
                 />
               </div>
             </div>
@@ -82,7 +82,7 @@ export const Login: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
-                  className="input-enterprise !h-10 pl-10 pr-3.5 text-sm"
+                  className="input-enterprise !h-10 !pl-10 !pr-3.5 text-sm"
                 />
               </div>
             </div>

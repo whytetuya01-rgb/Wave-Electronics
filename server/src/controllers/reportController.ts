@@ -28,8 +28,8 @@ export const getComponentStockReport = async (req: AuthRequest, res: Response): 
 
     const components = await Component.find(query)
       .populate('categoryId', 'name')
-      .populate('unitId', 'name symbol')
-      .populate('locationId', 'name code')
+      .populate('unitId', 'name shortCode')
+      .populate('locationId', 'name')
       .sort({ partCode: 1 })
       .lean();
 
@@ -54,7 +54,7 @@ export const getComponentStockReport = async (req: AuthRequest, res: Response): 
         partCode: c.partCode,
         name: c.name,
         category: (c.categoryId as any)?.name || 'Uncategorized',
-        unit: (c.unitId as any)?.symbol || 'pcs',
+        unit: (c.unitId as any)?.shortCode || 'pcs',
         location: (c.locationId as any)?.name || 'Main Warehouse',
         package: c.package || '-',
         inStoreStock: inStore,
@@ -142,8 +142,8 @@ export const getLowStockReport = async (req: AuthRequest, res: Response): Promis
 
     const components = await Component.find(query)
       .populate('categoryId', 'name')
-      .populate('unitId', 'name symbol')
-      .populate('locationId', 'name code')
+      .populate('unitId', 'name shortCode')
+      .populate('locationId', 'name')
       .sort({ partCode: 1 })
       .lean();
 
@@ -172,7 +172,7 @@ export const getLowStockReport = async (req: AuthRequest, res: Response): Promis
           partCode: c.partCode,
           name: c.name,
           category: (c.categoryId as any)?.name || 'General',
-          unit: (c.unitId as any)?.symbol || 'pcs',
+          unit: (c.unitId as any)?.shortCode || 'pcs',
           location: (c.locationId as any)?.name || 'Store',
           package: c.package || '-',
           inStoreStock: inStore,
@@ -240,7 +240,7 @@ export const getStockLedgerReport = async (req: AuthRequest, res: Response): Pro
 
     const transactions = await StockTransaction.find(query)
       .populate('componentId', 'partCode name ratePerUnit unitId')
-      .populate('vendorId', 'name code')
+      .populate('vendorId', 'name')
       .populate('createdById', 'name username')
       .sort({ createdAt: -1 })
       .limit(maxLimit)
@@ -278,13 +278,15 @@ export const getMaterialWithVendorsReport = async (req: AuthRequest, res: Respon
       withVendorStock: { $gt: 0 },
     })
       .populate('categoryId', 'name')
-      .populate('unitId', 'symbol')
+      .populate('unitId', 'shortCode')
       .sort({ partCode: 1 })
       .lean();
 
-    // Cross-reference active jobs (issued or partially_received) to attribute material to specific vendors
+    // Cross-reference active jobs (material issued or partially received) to
+    // attribute material to specific vendors. 'material_issued' is the real
+    // status value (there is no plain 'issued' status on Job).
     const activeJobsQuery: Record<string, any> = {
-      status: { $in: ['issued', 'partially_received'] },
+      status: { $in: ['material_issued', 'partially_received'] },
     };
 
     if (vendorId && typeof vendorId === 'string' && mongoose.Types.ObjectId.isValid(vendorId)) {
@@ -292,7 +294,7 @@ export const getMaterialWithVendorsReport = async (req: AuthRequest, res: Respon
     }
 
     const activeJobs = await Job.find(activeJobsQuery)
-      .populate('vendorId', 'name code phone email')
+      .populate('vendorId', 'name phone email')
       .lean();
 
     // Map materials held across active jobs per vendor
@@ -307,11 +309,9 @@ export const getMaterialWithVendorsReport = async (req: AuthRequest, res: Respon
         vendorMap.set(vId, {
           vendorId: vId,
           vendorName: v.name,
-          vendorCode: v.code,
           phone: v.phone || '-',
           email: v.email || '-',
           activeJobs: [],
-          components: new Map<string, any>(),
           totalItemsCount: 0,
           totalValuation: 0,
         });
@@ -324,11 +324,6 @@ export const getMaterialWithVendorsReport = async (req: AuthRequest, res: Respon
         status: job.status,
         issuedDate: job.updatedAt,
       });
-
-      // Aggregate issued components for this job
-      (job.jobCircuits || []).forEach((jc: any) => {
-        // Find requirements if snapshot exists
-      });
     });
 
     // Summary of total with-vendor stock from components collection (authoritative ground truth)
@@ -337,7 +332,7 @@ export const getMaterialWithVendorsReport = async (req: AuthRequest, res: Respon
       partCode: c.partCode,
       name: c.name,
       category: (c.categoryId as any)?.name || 'General',
-      unit: (c.unitId as any)?.symbol || 'pcs',
+      unit: (c.unitId as any)?.shortCode || 'pcs',
       withVendorStock: c.withVendorStock,
       ratePerUnit: c.ratePerUnit || 0,
       valuation: (c.withVendorStock || 0) * (c.ratePerUnit || 0),
@@ -346,7 +341,7 @@ export const getMaterialWithVendorsReport = async (req: AuthRequest, res: Respon
     const totalValuation = componentRows.reduce((sum, c) => sum + c.valuation, 0);
     const totalUnits = componentRows.reduce((sum, c) => sum + c.withVendorStock, 0);
 
-    const vendorsList = await Vendor.find({ isActive: true }).select('name code phone email').lean();
+    const vendorsList = await Vendor.find({ isActive: true }).select('name phone email').lean();
 
     res.json({
       componentsWithVendors: componentRows,
@@ -373,7 +368,7 @@ export const getPendingJobReceiptsReport = async (req: AuthRequest, res: Respons
     const { vendorId, search } = req.query;
 
     const query: Record<string, any> = {
-      status: { $in: ['issued', 'partially_received', 'approved'] },
+      status: { $in: ['material_issued', 'partially_received', 'approved'] },
     };
 
     if (vendorId && typeof vendorId === 'string' && mongoose.Types.ObjectId.isValid(vendorId)) {
@@ -385,7 +380,7 @@ export const getPendingJobReceiptsReport = async (req: AuthRequest, res: Respons
     }
 
     const jobs = await Job.find(query)
-      .populate('vendorId', 'name code')
+      .populate('vendorId', 'name')
       .populate('jobCircuits.circuitId', 'name circuitCode')
       .sort({ createdAt: -1 })
       .lean();
@@ -405,8 +400,11 @@ export const getPendingJobReceiptsReport = async (req: AuthRequest, res: Respons
 
       const circuits = (job.jobCircuits || []).map((jc: any) => {
         const ordered = jc.orderedQty || 0;
-        const good = jc.completedGoodQty || 0;
-        const rejected = jc.rejectedQty || 0;
+        // Real field names on IJobCircuit are receivedGoodQty/receivedRejectedQty
+        // (written only by performJobReceipt) - completedGoodQty/rejectedQty
+        // never existed on this schema.
+        const good = jc.receivedGoodQty || 0;
+        const rejected = jc.receivedRejectedQty || 0;
         const pending = Math.max(0, ordered - (good + rejected));
 
         jobTarget += ordered;
@@ -432,7 +430,9 @@ export const getPendingJobReceiptsReport = async (req: AuthRequest, res: Respons
       totalRejected += jobRejected;
       totalPendingCircuits += jobPending;
 
-      const dueDate = job.deliveryDueDate ? new Date(job.deliveryDueDate) : null;
+      // Job has no separate "delivery due date" field - targetDate (the
+      // date set at job creation) is the real field that represents this.
+      const dueDate = (job as any).targetDate ? new Date((job as any).targetDate) : null;
       const isOverdue = dueDate ? dueDate < now && jobPending > 0 : false;
       if (isOverdue) overdueJobsCount++;
 
@@ -440,10 +440,9 @@ export const getPendingJobReceiptsReport = async (req: AuthRequest, res: Respons
         _id: job._id,
         jobNumber: job.jobNumber,
         vendor: (job.vendorId as any)?.name || 'Unknown Vendor',
-        vendorCode: (job.vendorId as any)?.code || '-',
         status: job.status,
         issuedDate: job.approvedAt || job.createdAt,
-        deliveryDueDate: job.deliveryDueDate || null,
+        deliveryDueDate: (job as any).targetDate || null,
         isOverdue,
         totalTarget: jobTarget,
         totalGood: jobGood,
@@ -483,8 +482,10 @@ export const getJobReconciliationReport = async (req: AuthRequest, res: Response
     if (status && typeof status === 'string' && status !== 'all') {
       query.status = status;
     } else {
-      // Default to closed, short_closed, or jobs with receipts
-      query.status = { $in: ['closed', 'short_closed', 'partially_received', 'issued'] };
+      // Default to closed (including short-closed, which is status='closed'
+      // with isShortClosed=true - not a distinct status value) or jobs with
+      // receipts in progress.
+      query.status = { $in: ['closed', 'partially_received', 'material_issued'] };
     }
 
     if (vendorId && typeof vendorId === 'string' && mongoose.Types.ObjectId.isValid(vendorId)) {
@@ -498,18 +499,20 @@ export const getJobReconciliationReport = async (req: AuthRequest, res: Response
     const maxLimit = Math.min(parseInt(limit as string, 10) || 50, 100);
 
     const jobs = await Job.find(query)
-      .populate('vendorId', 'name code')
+      .populate('vendorId', 'name')
       .sort({ updatedAt: -1 })
       .limit(maxLimit)
       .lean();
 
     const jobsSummary = jobs.map((j) => {
-      const isReconciled = j.status === 'closed' || j.status === 'short_closed';
+      const isShortClosed = Boolean((j as any).isShortClosed);
+      const isReconciled = j.status === 'closed';
       return {
         _id: j._id,
         jobNumber: j.jobNumber,
         vendorName: (j.vendorId as any)?.name || '-',
         status: j.status,
+        isShortClosed,
         createdAt: j.createdAt,
         updatedAt: j.updatedAt,
         hasCloseSnapshot: Boolean(j.closeReconciliationSnapshot),
@@ -518,9 +521,9 @@ export const getJobReconciliationReport = async (req: AuthRequest, res: Response
       };
     });
 
-    const closedCount = jobs.filter((j) => j.status === 'closed').length;
-    const shortClosedCount = jobs.filter((j) => j.status === 'short_closed').length;
-    const inProgressCount = jobs.filter((j) => j.status === 'partially_received' || j.status === 'issued').length;
+    const closedCount = jobs.filter((j) => j.status === 'closed' && !(j as any).isShortClosed).length;
+    const shortClosedCount = jobs.filter((j) => j.status === 'closed' && (j as any).isShortClosed).length;
+    const inProgressCount = jobs.filter((j) => j.status === 'partially_received' || j.status === 'material_issued').length;
 
     res.json({
       data: jobsSummary,

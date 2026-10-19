@@ -291,7 +291,7 @@ export const ComponentsList: React.FC = () => {
             placeholder="Filter by part code, description, footprint..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input-enterprise pl-9 !h-9 text-xs"
+            className="input-enterprise !pl-9 !h-9 text-xs"
           />
         </div>
 

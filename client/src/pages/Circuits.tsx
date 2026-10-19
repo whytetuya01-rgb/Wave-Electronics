@@ -412,7 +412,7 @@ export const Circuits: React.FC = () => {
             placeholder="Search circuit code or name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input-enterprise pl-9"
+            className="input-enterprise !pl-9"
           />
         </div>
         <div className="inline-flex rounded-lg border border-gray-200 p-1 bg-slate-50 text-xs w-full sm:w-auto">

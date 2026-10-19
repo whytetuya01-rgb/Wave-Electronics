@@ -1149,14 +1149,13 @@ export const Reports: React.FC = () => {
                       </td>
                       <td className="td-enterprise">
                         <div className="font-medium text-[#171717]">{j.vendor}</div>
-                        <div className="text-[10px] text-[#716B64]">{j.vendorCode}</div>
                       </td>
                       <td className="td-enterprise text-center">
                         <span
                           className={`badge-status text-[10px] ${
                             j.status === 'partially_received'
                               ? 'badge-status-gold'
-                              : j.status === 'issued'
+                              : j.status === 'material_issued'
                               ? 'badge-status-neutral'
                               : 'badge-status-warning'
                           }`}
@@ -1249,14 +1248,14 @@ export const Reports: React.FC = () => {
                       <td className="td-enterprise text-center">
                         <span
                           className={`badge-status text-[10px] ${
-                            j.status === 'closed'
+                            j.status === 'closed' && !j.isShortClosed
                               ? 'badge-status-success'
-                              : j.status === 'short_closed'
+                              : j.status === 'closed' && j.isShortClosed
                               ? 'badge-status-warning'
                               : 'badge-status-gold'
                           }`}
                         >
-                          {j.status.replace('_', ' ')}
+                          {j.status === 'closed' && j.isShortClosed ? 'short closed' : j.status.replace('_', ' ')}
                         </span>
                       </td>
                       <td className="td-enterprise text-center font-medium text-[#171717]">
@@ -1402,12 +1401,12 @@ export const Reports: React.FC = () => {
                       <tr>
                         <th className="th-enterprise">Part Code</th>
                         <th className="th-enterprise">Name</th>
-                        <th className="th-enterprise text-right">Planned</th>
                         <th className="th-enterprise text-right">Issued</th>
                         <th className="th-enterprise text-right">Consumed</th>
                         <th className="th-enterprise text-right">Returned</th>
                         <th className="th-enterprise text-right">Damaged</th>
-                        <th className="th-enterprise text-right">Variance</th>
+                        <th className="th-enterprise text-right">Remaining w/ Vendor</th>
+                        <th className="th-enterprise text-center">Ledger Check</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E6E3DE]">
@@ -1417,7 +1416,6 @@ export const Reports: React.FC = () => {
                             {c.partCode}
                           </td>
                           <td className="td-enterprise text-[#171717]">{c.name}</td>
-                          <td className="td-enterprise text-right text-[#716B64]">{c.plannedQty}</td>
                           <td className="td-enterprise text-right font-semibold text-[#171717]">
                             {c.issuedQty}
                           </td>
@@ -1429,13 +1427,21 @@ export const Reports: React.FC = () => {
                             {c.damagedQty > 0 ? c.damagedQty : '-'}
                           </td>
                           <td className="td-enterprise text-right font-mono font-bold">
-                            <span
-                              className={
-                                c.variance === 0 ? 'text-[#168060]' : 'text-[#C2413A]'
-                              }
-                            >
-                              {c.variance > 0 ? `+${c.variance}` : c.variance}
+                            <span className={c.remainingWithVendor > 0 ? 'text-[#B7791F]' : 'text-[#168060]'}>
+                              {c.remainingWithVendor > 0 ? c.remainingWithVendor : '0'}
                             </span>
+                          </td>
+                          <td className="td-enterprise text-center">
+                            {c.ledgerDiscrepancy === 0 ? (
+                              <span className="badge-status badge-status-success text-[10px]">Matches</span>
+                            ) : (
+                              <span
+                                className="badge-status badge-status-error text-[10px]"
+                                title={`Ledger discrepancy: ${c.ledgerDiscrepancy}`}
+                              >
+                                Mismatch
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}

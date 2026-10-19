@@ -379,7 +379,7 @@ export const StockInward: React.FC = () => {
             placeholder="Search by Inward #, Supplier, Bill #..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input-enterprise pl-9"
+            className="input-enterprise !pl-9"
           />
         </div>
 

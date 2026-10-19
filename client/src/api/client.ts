@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+// Defaults to the relative '/api' path (same-origin deployment, proxied to
+// the backend in dev via vite.config.ts) - set VITE_API_URL only when the
+// API is hosted on a different origin than the frontend.
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },

@@ -1,21 +1,53 @@
 import mongoose from 'mongoose';
+import { resolveMongoUri } from './env.js';
 
 let isReplicaSet = false;
 
 export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/wave_electronics');
+    const conn = await mongoose.connect(resolveMongoUri());
     console.log(`[MongoDB Connected]: ${conn.connection.host}/${conn.connection.name}`);
     
     // Check if connected MongoDB instance is a replica set
     try {
-      const adminDb = conn.connection.db?.admin();
-      if (adminDb) {
-        const hello = await adminDb.command({ hello: 1 });
-        isReplicaSet = Boolean(hello.setName);
-        console.log(`[MongoDB Mode]: ${isReplicaSet ? `Replica Set (${hello.setName}) - ACID Transactions Active` : 'Standalone (Atomic sequence fallback)'}`);
+      let hello: any = null;
+      if (conn.connection.db) {
+        try {
+          hello = await conn.connection.db.command({ hello: 1 });
+        } catch {
+          try {
+            hello = await conn.connection.db.command({ isMaster: 1 });
+          } catch {
+            const adminDb = conn.connection.db?.admin();
+            if (adminDb) {
+              hello = await adminDb.command({ hello: 1 });
+            }
+          }
+        }
       }
-    } catch {
+
+      const client = typeof conn.connection.getClient === 'function' ? conn.connection.getClient() : (conn.connection as any).client;
+      const topology = client?.topology?.description;
+      const topologyType = topology?.type;
+      const topologySetName = topology?.setName;
+
+      isReplicaSet = Boolean(
+        hello?.setName ||
+        topologySetName ||
+        topologyType === 'ReplicaSetWithPrimary' ||
+        topologyType === 'ReplicaSetNoPrimary' ||
+        topologyType === 'Sharded'
+      );
+
+      console.log(
+        `[MongoDB Mode]: ${
+          isReplicaSet
+            ? `Replica Set (${hello?.setName || topologySetName || topologyType}) - ACID Transactions Active`
+            : 'Standalone (Atomic sequence fallback)'
+        }`
+      );
+    } catch (modeErr) {
+      console.warn('[MongoDB Mode Detection Warning]:', modeErr);
       isReplicaSet = false;
     }
 
@@ -38,4 +70,26 @@ export const connectDB = async () => {
   }
 };
 
-export const getIsReplicaSet = () => isReplicaSet;
+export const getIsReplicaSet = () => {
+  if (isReplicaSet) return true;
+
+  // Dynamic re-check from Mongoose client topology in case discovery completed after boot
+  try {
+    const client = typeof mongoose.connection.getClient === 'function'
+      ? mongoose.connection.getClient()
+      : (mongoose.connection as any).client;
+    const topology = client?.topology?.description;
+    if (
+      topology?.setName ||
+      topology?.type === 'ReplicaSetWithPrimary' ||
+      topology?.type === 'Sharded'
+    ) {
+      isReplicaSet = true;
+      return true;
+    }
+  } catch {
+    // Ignore and fallback
+  }
+
+  return isReplicaSet;
+};

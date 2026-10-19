@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User, IUser, UserRole } from '../models/User.js';
+import { resolveJwtSecret } from '../config/env.js';
 
 export interface AuthRequest extends Request {
   user?: IUser;
@@ -23,10 +24,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'wave_electronics_super_secret_jwt_key_2026_secured'
-    ) as JwtPayload;
+    const decoded = jwt.verify(token, resolveJwtSecret()) as JwtPayload;
 
     const user = await User.findById(decoded.id).select('-passwordHash');
 

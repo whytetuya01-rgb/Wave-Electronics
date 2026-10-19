@@ -3,13 +3,10 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { resolveJwtSecret } from '../config/env.js';
 
 const generateToken = (id: string, email: string, role: string): string => {
-  return jwt.sign(
-    { id, email, role },
-    process.env.JWT_SECRET || 'wave_electronics_super_secret_jwt_key_2026_secured',
-    { expiresIn: '7d' }
-  );
+  return jwt.sign({ id, email, role }, resolveJwtSecret(), { expiresIn: '7d' });
 };
 
 export const login = async (req: Request, res: Response): Promise<void> => {

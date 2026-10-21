@@ -12,6 +12,8 @@ import { FormField } from '../components/ui/FormField';
 import { ValidatedInput } from '../components/ui/ValidatedInput';
 import { SimpleSelect } from '../components/ui/Select';
 import { PageHeader } from '../components/ui/PageHeader';
+import { TablePagination } from '../components/ui/TablePagination';
+import { usePagination } from '../hooks/usePagination';
 import { toast } from '../utils/toast';
 import { handleApiError } from '../utils/apiErrors';
 import {
@@ -94,14 +96,14 @@ export const Users: React.FC = () => {
 
   const form = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: { name: '', email: '', password: '', role: 'store_keeper' },
   });
 
   const resetPasswordForm = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: { password: '' },
   });
@@ -198,6 +200,7 @@ export const Users: React.FC = () => {
     const matchesSearch = u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
     return matchesStatus && matchesSearch;
   });
+  const usersPagination = usePagination(filteredUsers, `${search}|${statusFilter}`);
 
   const totalUsers = users.length;
   const activeUsers = users.filter((u) => u.isActive).length;
@@ -322,7 +325,7 @@ export const Users: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => {
+                usersPagination.pageItems.map((u) => {
                   const isSelf = currentUser?.id === u._id;
                   return (
                     <tr key={u._id} className="tr-enterprise group">
@@ -394,6 +397,14 @@ export const Users: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={usersPagination.page}
+          pageSize={usersPagination.pageSize}
+          total={usersPagination.total}
+          onPageChange={usersPagination.setPage}
+          onPageSizeChange={usersPagination.setPageSize}
+          itemLabel="users"
+        />
       </div>
 
       {/* ADD USER DIALOG */}

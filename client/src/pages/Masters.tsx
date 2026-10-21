@@ -5,6 +5,8 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { FolderTree, Ruler, MapPin, Plus, Trash2, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
+import { TablePagination } from '../components/ui/TablePagination';
+import { usePagination } from '../hooks/usePagination';
 import { ConfirmModal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 import { FormField } from '../components/ui/FormField';
@@ -29,6 +31,9 @@ export const Masters: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
+  const categoriesPagination = usePagination(categories);
+  const unitsPagination = usePagination(units);
+  const locationsPagination = usePagination(locations);
   const [loading, setLoading] = useState(true);
 
   // Category Form
@@ -40,7 +45,7 @@ export const Masters: React.FC = () => {
     formState: { errors: catErrors, isSubmitting: isCatSubmitting },
   } = useForm<CategoryFormData>({
     resolver: zodResolver(masterCategorySchema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
     defaultValues: { name: '', description: '' },
   });
 
@@ -53,7 +58,7 @@ export const Masters: React.FC = () => {
     formState: { errors: unitErrors, isSubmitting: isUnitSubmitting },
   } = useForm<UnitFormData>({
     resolver: zodResolver(masterUnitSchema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
     defaultValues: { name: '', shortCode: '' },
   });
 
@@ -66,7 +71,7 @@ export const Masters: React.FC = () => {
     formState: { errors: locErrors, isSubmitting: isLocSubmitting },
   } = useForm<LocationFormData>({
     resolver: zodResolver(masterLocationSchema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
     defaultValues: { name: '', zone: '', description: '' },
   });
 
@@ -286,7 +291,7 @@ export const Masters: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  categories.map((cat) => (
+                  categoriesPagination.pageItems.map((cat) => (
                     <tr key={cat._id} className="tr-enterprise">
                       <td className="td-enterprise font-semibold text-[#171717]">{cat.name}</td>
                       <td className="td-enterprise text-[#6B6863] text-xs">{cat.description || '-'}</td>
@@ -306,6 +311,14 @@ export const Masters: React.FC = () => {
                 )}
               </tbody>
             </table>
+            <TablePagination
+              page={categoriesPagination.page}
+              pageSize={categoriesPagination.pageSize}
+              total={categoriesPagination.total}
+              onPageChange={categoriesPagination.setPage}
+              onPageSizeChange={categoriesPagination.setPageSize}
+              itemLabel="categories"
+            />
           </div>
         </div>
       )}
@@ -363,7 +376,7 @@ export const Masters: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  units.map((u) => (
+                  unitsPagination.pageItems.map((u) => (
                     <tr key={u._id} className="tr-enterprise">
                       <td className="td-enterprise font-semibold text-[#171717]">{u.name}</td>
                       <td className="td-enterprise font-mono font-bold text-[#171717]">{u.shortCode}</td>
@@ -383,6 +396,14 @@ export const Masters: React.FC = () => {
                 )}
               </tbody>
             </table>
+            <TablePagination
+              page={unitsPagination.page}
+              pageSize={unitsPagination.pageSize}
+              total={unitsPagination.total}
+              onPageChange={unitsPagination.setPage}
+              onPageSizeChange={unitsPagination.setPageSize}
+              itemLabel="units"
+            />
           </div>
         </div>
       )}
@@ -448,7 +469,7 @@ export const Masters: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  locations.map((l) => (
+                  locationsPagination.pageItems.map((l) => (
                     <tr key={l._id} className="tr-enterprise">
                       <td className="td-enterprise font-semibold text-[#171717]">{l.name}</td>
                       <td className="td-enterprise text-[#6B6863] text-xs">{l.zone || '-'}</td>
@@ -469,6 +490,14 @@ export const Masters: React.FC = () => {
                 )}
               </tbody>
             </table>
+            <TablePagination
+              page={locationsPagination.page}
+              pageSize={locationsPagination.pageSize}
+              total={locationsPagination.total}
+              onPageChange={locationsPagination.setPage}
+              onPageSizeChange={locationsPagination.setPageSize}
+              itemLabel="locations"
+            />
           </div>
         </div>
       )}

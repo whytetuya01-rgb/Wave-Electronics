@@ -7,6 +7,7 @@ import { ButtonSpinner } from '../components/ui/Loading';
 import { PageHeader } from '../components/ui/PageHeader';
 import { toast } from '../utils/toast';
 import { handleApiError } from '../utils/apiErrors';
+import { GSTIN_REGEX, PHONE_REGEX } from '../utils/validationSchemas';
 import { Settings as SettingsIcon, Building2, MapPin, Phone, Mail, FileText, Image, Save } from 'lucide-react';
 
 interface SettingsFormData {
@@ -56,7 +57,7 @@ export const Settings: React.FC = () => {
     setFormError('');
     setIsSaving(true);
     try {
-      await api.put('/settings', data);
+      await api.put('/settings', { ...data, gstin: data.gstin.trim().toUpperCase() });
       toast.success('Company settings updated successfully.');
     } catch (err: any) {
       const msg = handleApiError(err, form.setError, 'Failed to update settings');
@@ -84,7 +85,7 @@ export const Settings: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="enterprise-card p-6 space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="enterprise-card p-6 space-y-4">
         <FormField label="Company Name" required error={form.formState.errors.companyName?.message} id="s-name">
           <ValidatedInput
             id="s-name"
@@ -100,15 +101,41 @@ export const Settings: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField label="Phone" optional error={form.formState.errors.phone?.message} id="s-phone">
-            <ValidatedInput id="s-phone" leftIcon={<Phone />} placeholder="+91 XXXXXXXXXX" {...form.register('phone')} />
+            <ValidatedInput
+              id="s-phone"
+              leftIcon={<Phone />}
+              placeholder="+91 XXXXXXXXXX"
+              hasError={Boolean(form.formState.errors.phone)}
+              {...form.register('phone', {
+                validate: (v) => !v || PHONE_REGEX.test(v) || 'Enter a valid phone number',
+              })}
+            />
           </FormField>
           <FormField label="Email" optional error={form.formState.errors.email?.message} id="s-email">
-            <ValidatedInput id="s-email" type="email" leftIcon={<Mail />} placeholder="ops@wave.com" {...form.register('email')} />
+            <ValidatedInput
+              id="s-email"
+              type="email"
+              leftIcon={<Mail />}
+              placeholder="ops@wave.com"
+              hasError={Boolean(form.formState.errors.email)}
+              {...form.register('email', {
+                validate: (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) || 'Enter a valid email address',
+              })}
+            />
           </FormField>
         </div>
 
         <FormField label="GSTIN" optional error={form.formState.errors.gstin?.message} id="s-gstin" helperText="Printed on challans and receipts.">
-          <ValidatedInput id="s-gstin" leftIcon={<FileText />} placeholder="27AAAAA0000A1Z5" {...form.register('gstin')} />
+          <ValidatedInput
+            id="s-gstin"
+            leftIcon={<FileText />}
+            placeholder="27AAAAA0000A1Z5"
+            className="uppercase placeholder:normal-case"
+            hasError={Boolean(form.formState.errors.gstin)}
+            {...form.register('gstin', {
+              validate: (v) => !v || GSTIN_REGEX.test(v.trim().toUpperCase()) || 'Enter a valid 15-character GSTIN',
+            })}
+          />
         </FormField>
 
         <FormField

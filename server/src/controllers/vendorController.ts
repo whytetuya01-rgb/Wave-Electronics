@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { Vendor } from '../models/Vendor.js';
 import { StockTransaction } from '../models/StockTransaction.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { escapeRegex } from '../utils/regex.js';
 
 // Get all vendors with search, filtering, and stats
 export const getVendors = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -18,11 +19,11 @@ export const getVendors = async (req: AuthRequest, res: Response): Promise<void>
 
     if (search) {
       query.$or = [
-        { name: { $regex: search as string, $options: 'i' } },
-        { contactPerson: { $regex: search as string, $options: 'i' } },
-        { phone: { $regex: search as string, $options: 'i' } },
-        { city: { $regex: search as string, $options: 'i' } },
-        { gstNumber: { $regex: search as string, $options: 'i' } },
+        { name: { $regex: escapeRegex(String(search)), $options: 'i' } },
+        { contactPerson: { $regex: escapeRegex(String(search)), $options: 'i' } },
+        { phone: { $regex: escapeRegex(String(search)), $options: 'i' } },
+        { city: { $regex: escapeRegex(String(search)), $options: 'i' } },
+        { gstNumber: { $regex: escapeRegex(String(search)), $options: 'i' } },
       ];
     }
 

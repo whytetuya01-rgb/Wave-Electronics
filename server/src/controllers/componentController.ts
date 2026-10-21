@@ -7,6 +7,7 @@ import { Location } from '../models/Location.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { withTransaction } from '../utils/transaction.js';
 import { logActivity } from '../services/activityLog.js';
+import { escapeRegex } from '../utils/regex.js';
 
 // Get Components with filtering, search, and pagination
 export const getComponents = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -17,9 +18,9 @@ export const getComponents = async (req: AuthRequest, res: Response): Promise<vo
 
     if (search) {
       query.$or = [
-        { partCode: { $regex: search as string, $options: 'i' } },
-        { name: { $regex: search as string, $options: 'i' } },
-        { package: { $regex: search as string, $options: 'i' } },
+        { partCode: { $regex: escapeRegex(String(search)), $options: 'i' } },
+        { name: { $regex: escapeRegex(String(search)), $options: 'i' } },
+        { package: { $regex: escapeRegex(String(search)), $options: 'i' } },
       ];
     }
 

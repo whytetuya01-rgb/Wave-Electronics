@@ -4,6 +4,7 @@ import { Circuit, ICircuitBomItem } from '../models/Circuit.js';
 import { Component } from '../models/Component.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { computeCircuitAvailability } from '../utils/circuitCalculations.js';
+import { escapeRegex } from '../utils/regex.js';
 
 interface RawBomItem {
   componentId: string;
@@ -84,8 +85,8 @@ export const getCircuits = async (req: AuthRequest, res: Response): Promise<void
 
     if (search) {
       query.$or = [
-        { circuitCode: { $regex: search as string, $options: 'i' } },
-        { name: { $regex: search as string, $options: 'i' } },
+        { circuitCode: { $regex: escapeRegex(String(search)), $options: 'i' } },
+        { name: { $regex: escapeRegex(String(search)), $options: 'i' } },
       ];
     }
     if (status === 'active' || status === 'inactive') {

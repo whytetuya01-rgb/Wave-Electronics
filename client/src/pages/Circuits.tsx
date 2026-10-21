@@ -30,6 +30,8 @@ import {
   Layers,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
+import { TablePagination } from '../components/ui/TablePagination';
+import { usePagination } from '../hooks/usePagination';
 
 interface BomItem {
   componentId: string;
@@ -89,6 +91,7 @@ export const Circuits: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const circuitsPagination = usePagination(circuits, `${search}|${statusFilter}`);
 
   // Modals
   const [showFormModal, setShowFormModal] = useState(false);
@@ -134,7 +137,9 @@ export const Circuits: React.FC = () => {
   const fetchCircuits = async () => {
     try {
       setLoading(true);
-      const params: any = { limit: 100 };
+      // Load the full list (paged client-side below) so the KPI cards, which
+      // are computed from every circuit, stay accurate.
+      const params: any = { limit: 1000 };
       if (search) params.search = search;
       if (statusFilter !== 'all') params.status = statusFilter;
       const res = await api.get('/circuits', { params });
@@ -469,7 +474,7 @@ export const Circuits: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                circuits.map((c) => (
+                circuitsPagination.pageItems.map((c) => (
                   <tr key={c._id} className="tr-enterprise group">
                     <td className="td-enterprise">
                       <div className="font-mono font-semibold text-[#171717]">{c.circuitCode}</div>
@@ -545,6 +550,14 @@ export const Circuits: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={circuitsPagination.page}
+          pageSize={circuitsPagination.pageSize}
+          total={circuitsPagination.total}
+          onPageChange={circuitsPagination.setPage}
+          onPageSizeChange={circuitsPagination.setPageSize}
+          itemLabel="circuits"
+        />
       </div>
 
       {/* ============ ADD / EDIT CIRCUIT MODAL (BOM Builder) ============ */}

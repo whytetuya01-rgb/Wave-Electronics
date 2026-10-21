@@ -5,7 +5,8 @@ import { TableSkeleton } from '../components/ui/Loading';
 import { SimpleSelect } from '../components/ui/Select';
 import { PageHeader } from '../components/ui/PageHeader';
 import { toast } from '../utils/toast';
-import { History, Calendar, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { History, Calendar, User } from 'lucide-react';
+import { TablePagination } from '../components/ui/TablePagination';
 
 interface ActivityLogItem {
   _id: string;
@@ -41,24 +42,23 @@ export const ActivityLogs: React.FC = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
-  const [pages, setPages] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [moduleFilter, fromDate, toDate, page]);
+  }, [moduleFilter, fromDate, toDate, page, pageSize]);
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const params: Record<string, string> = { page: String(page), limit: '50' };
+      const params: Record<string, string> = { page: String(page), limit: String(pageSize) };
       if (moduleFilter) params.module = moduleFilter;
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
       const res = await api.get('/activity-logs', { params });
       setLogs(res.data.data);
-      setPages(res.data.pagination.pages);
       setTotal(res.data.pagination.total);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to fetch activity logs');
@@ -171,27 +171,17 @@ export const ActivityLogs: React.FC = () => {
           </table>
         </div>
 
-        {pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-[#E6E3DE]/60">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="btn-secondary !h-8 !px-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <span className="text-xs text-[#6B6863]">
-              Page {page} of {pages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(pages, p + 1))}
-              disabled={page >= pages}
-              className="btn-secondary !h-8 !px-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          itemLabel="log entries"
+        />
       </div>
     </div>
   );

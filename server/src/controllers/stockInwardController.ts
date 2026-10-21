@@ -7,6 +7,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import { withTransaction } from '../utils/transaction.js';
 import { getNextSequence } from '../utils/sequence.js';
 import { logActivity } from '../services/activityLog.js';
+import { escapeRegex } from '../utils/regex.js';
 
 // Generates auto formatted inward number: INW-YYYYMM-XXXX using an atomic
 // per-month counter, so concurrent requests can never be issued the same
@@ -49,9 +50,9 @@ export const getStockInwards = async (req: AuthRequest, res: Response): Promise<
 
     if (search) {
       query.$or = [
-        { inwardNumber: { $regex: search as string, $options: 'i' } },
-        { supplierName: { $regex: search as string, $options: 'i' } },
-        { billNumber: { $regex: search as string, $options: 'i' } },
+        { inwardNumber: { $regex: escapeRegex(String(search)), $options: 'i' } },
+        { supplierName: { $regex: escapeRegex(String(search)), $options: 'i' } },
+        { billNumber: { $regex: escapeRegex(String(search)), $options: 'i' } },
       ];
     }
 
@@ -82,11 +83,19 @@ export const getStockInwards = async (req: AuthRequest, res: Response): Promise<
 
     // Calculate aggregated metrics for the summary cards
     const totalAmountAgg = await StockInward.aggregate([
-      { $group: { _id: null, totalValue: { $sum: '$totalAmount' }, totalUnits: { $sum: '$totalQty' } } },
+      {
+        $group: {
+          _id: null,
+          totalValue: { $sum: '$totalAmount' },
+          totalUnits: { $sum: '$totalQty' },
+          totalCount: { $sum: 1 },
+        },
+      },
     ]);
 
     const totalValueAllTime = totalAmountAgg[0]?.totalValue || 0;
     const totalUnitsAllTime = totalAmountAgg[0]?.totalUnits || 0;
+    const totalCountAllTime = totalAmountAgg[0]?.totalCount || 0;
 
     res.json({
       data: inwards,
@@ -97,6 +106,7 @@ export const getStockInwards = async (req: AuthRequest, res: Response): Promise<
         totalPages: Math.ceil(total / limitNum),
         totalValueAllTime,
         totalUnitsAllTime,
+        totalCountAllTime,
       },
     });
   } catch (error: any) {

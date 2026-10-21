@@ -267,7 +267,7 @@ export const jobFormSchema = z.object({
     .string()
     .min(1, 'Select a vendor to continue'),
   targetDate: z
-    .string()
+    .string({ required_error: 'Target completion date is required' })
     .min(1, 'Target completion date is required'),
   remarks: z
     .string()

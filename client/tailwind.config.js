@@ -56,6 +56,13 @@ export default {
         'card': '0 1px 2px 0 rgba(20, 20, 20, 0.03)',
         'dropdown': '0 4px 12px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.2)',
       },
+      // 4.5 (18px) is used across the app (p-4.5, h-4.5, w-4.5...) but isn't in
+      // Tailwind's default scale, so those classes previously generated no CSS
+      // at all - e.g. the inward-entry details panel had zero padding and the
+      // sidebar's active-page indicator pill had zero height.
+      spacing: {
+        '4.5': '1.125rem',
+      },
       borderRadius: {
         'btn': '10px',
         'card': '12px',

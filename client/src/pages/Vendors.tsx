@@ -34,6 +34,8 @@ import {
   Layers,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
+import { TablePagination } from '../components/ui/TablePagination';
+import { usePagination } from '../hooks/usePagination';
 
 interface VendorItem {
   _id: string;
@@ -114,7 +116,7 @@ export const Vendors: React.FC = () => {
   // React Hook Form for Vendor
   const form = useForm<VendorFormData>({
     resolver: zodResolver(vendorSchema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
       name: '',
@@ -209,8 +211,22 @@ export const Vendors: React.FC = () => {
     }
   };
 
+  const getCircuitRateError = (): string | null => {
+    const negative = circuitRates.find((r) => r.ratePerUnit < 0);
+    if (negative) return `Per-circuit rate for '${negative.circuitName || 'unselected circuit'}' cannot be negative`;
+    const missingCircuit = circuitRates.find((r) => !r.circuitName.trim() && r.ratePerUnit > 0);
+    if (missingCircuit) return 'Select a circuit for every per-circuit rate row, or remove the row';
+    return null;
+  };
+
   const handleCreateVendor = async (data: VendorFormData) => {
     setFormError('');
+    const rateError = getCircuitRateError();
+    if (rateError) {
+      setFormError(rateError);
+      toast.error(rateError);
+      return;
+    }
     setIsSaving(true);
     try {
       const circuitsArray = (data.circuitsCanAssemble || '')
@@ -239,6 +255,12 @@ export const Vendors: React.FC = () => {
   const handleUpdateVendor = async (data: VendorFormData) => {
     if (!selectedVendor) return;
     setFormError('');
+    const rateError = getCircuitRateError();
+    if (rateError) {
+      setFormError(rateError);
+      toast.error(rateError);
+      return;
+    }
     setIsSaving(true);
     try {
       const circuitsArray = (data.circuitsCanAssemble || '')
@@ -324,6 +346,7 @@ export const Vendors: React.FC = () => {
       (v.gstNumber && v.gstNumber.toLowerCase().includes(q))
     );
   });
+  const vendorsPagination = usePagination(filteredVendors, `${search}|${statusFilter}`);
 
   const totalVendors = vendors.length;
   const activeVendors = vendors.filter((v) => v.isActive).length;
@@ -481,7 +504,7 @@ export const Vendors: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredVendors.map((vendor) => (
+                vendorsPagination.pageItems.map((vendor) => (
                   <tr key={vendor._id} className="tr-enterprise group">
                     <td className="td-enterprise">
                       <div className="flex items-center gap-2">
@@ -608,6 +631,14 @@ export const Vendors: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={vendorsPagination.page}
+          pageSize={vendorsPagination.pageSize}
+          total={vendorsPagination.total}
+          onPageChange={vendorsPagination.setPage}
+          onPageSizeChange={vendorsPagination.setPageSize}
+          itemLabel="vendors"
+        />
       </div>
 
       {/* ADD / EDIT VENDOR DIALOG */}

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { FinishedGoods } from '../models/FinishedGoods.js';
 import { FinishedGoodsTransaction } from '../models/FinishedGoodsTransaction.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { escapeRegex } from '../utils/regex.js';
 
 /**
  * GET /api/finished-goods
@@ -14,7 +15,7 @@ export const getFinishedGoods = async (req: AuthRequest, res: Response): Promise
     const query: Record<string, any> = {};
 
     if (search && typeof search === 'string' && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(escapeRegex(search.trim()), 'i');
       query.$or = [
         { circuitCode: searchRegex },
         { circuitName: searchRegex },

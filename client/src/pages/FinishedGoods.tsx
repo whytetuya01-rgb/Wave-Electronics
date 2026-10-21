@@ -19,6 +19,8 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
+import { TablePagination } from '../components/ui/TablePagination';
+import { usePagination } from '../hooks/usePagination';
 
 interface FinishedGoodsItem {
   _id: string;
@@ -78,12 +80,14 @@ export const FinishedGoods: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
+  const itemsPagination = usePagination(items, `${search}|${statusFilter}`);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Transaction Ledger Modal State
   const [selectedItem, setSelectedItem] = useState<FinishedGoodsItem | null>(null);
   const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [transactions, setTransactions] = useState<FGTransaction[]>([]);
+  const transactionsPagination = usePagination(transactions, selectedItem?._id);
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [ledgerError, setLedgerError] = useState('');
 
@@ -338,7 +342,7 @@ export const FinishedGoods: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                items.map((item) => (
+                itemsPagination.pageItems.map((item) => (
                   <tr key={item._id} className="tr-enterprise group">
                     <td className="td-enterprise font-mono font-bold text-[#171717]">
                       <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#FAF9F7] text-[#171717] border border-[#E6E3DE]">
@@ -400,6 +404,14 @@ export const FinishedGoods: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={itemsPagination.page}
+          pageSize={itemsPagination.pageSize}
+          total={itemsPagination.total}
+          onPageChange={itemsPagination.setPage}
+          onPageSizeChange={itemsPagination.setPageSize}
+          itemLabel="circuits"
+        />
       </div>
 
       {/* Transaction Ledger Modal */}
@@ -480,7 +492,7 @@ export const FinishedGoods: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      transactions.map((tx) => (
+                      transactionsPagination.pageItems.map((tx) => (
                         <tr key={tx._id} className="tr-enterprise">
                           <td className="td-enterprise text-[#716B64] whitespace-nowrap">
                             {new Date(tx.createdAt).toLocaleDateString('en-IN', {
@@ -531,6 +543,14 @@ export const FinishedGoods: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              <TablePagination
+                page={transactionsPagination.page}
+                pageSize={transactionsPagination.pageSize}
+                total={transactionsPagination.total}
+                onPageChange={transactionsPagination.setPage}
+                onPageSizeChange={transactionsPagination.setPageSize}
+                itemLabel="transactions"
+              />
             </div>
 
             <div className="flex items-center justify-between text-xs text-[#716B64] pt-2 border-t border-[#E7E4DE]">

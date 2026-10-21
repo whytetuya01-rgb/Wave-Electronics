@@ -6,6 +6,7 @@ import { Circuit } from '../models/Circuit.js';
 import { Component } from '../models/Component.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { getNextSequence } from '../utils/sequence.js';
+import { escapeRegex } from '../utils/regex.js';
 
 interface RawJobCircuit {
   circuitId: string;
@@ -249,7 +250,7 @@ export const getJobs = async (req: AuthRequest, res: Response): Promise<void> =>
     const query: any = {};
 
     if (search) {
-      query.jobNumber = { $regex: search as string, $options: 'i' };
+      query.jobNumber = { $regex: escapeRegex(String(search)), $options: 'i' };
     }
     if (status && status !== 'all') {
       query.status = status;

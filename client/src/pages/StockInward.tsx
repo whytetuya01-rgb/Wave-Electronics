@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { StatCard } from '../components/ui/StatCard';
@@ -26,6 +26,7 @@ import {
   IndianRupee,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
+import { TablePagination } from '../components/ui/TablePagination';
 
 interface ComponentOption {
   _id: string;
@@ -72,10 +73,15 @@ export const StockInward: React.FC = () => {
   const [componentsList, setComponentsList] = useState<ComponentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalInwards, setTotalInwards] = useState(0);
 
-  // Stats
+  // Stats (all-time, independent of the current filters/page)
+  const [totalCountAllTime, setTotalCountAllTime] = useState(0);
   const [totalValueAllTime, setTotalValueAllTime] = useState(0);
   const [totalUnitsAllTime, setTotalUnitsAllTime] = useState(0);
 
@@ -115,20 +121,44 @@ export const StockInward: React.FC = () => {
   const [selectedShortageJobId, setSelectedShortageJobId] = useState('');
 
   useEffect(() => {
-    fetchInwards();
     fetchComponents();
-  }, [startDate, endDate]);
+  }, []);
+
+  // Search runs on the server (it previously filtered only the rows already
+  // loaded), debounced so it doesn't fire a request per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Server-side pagination: on a filter change from a later page, reset to
+  // page 1 first; the effect then re-runs and fetches once.
+  const filterKey = `${debouncedSearch}|${startDate}|${endDate}`;
+  const lastFilterKey = useRef(filterKey);
+  useEffect(() => {
+    if (lastFilterKey.current !== filterKey) {
+      lastFilterKey.current = filterKey;
+      if (page !== 1) {
+        setPage(1);
+        return;
+      }
+    }
+    fetchInwards();
+  }, [filterKey, page, pageSize]);
 
   const fetchInwards = async () => {
     try {
       setLoading(true);
-      const params: any = {};
+      const params: any = { page, limit: pageSize };
+      if (debouncedSearch) params.search = debouncedSearch;
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
 
       const res = await api.get('/stock-inward', { params });
       setInwards(res.data.data);
       if (res.data.meta) {
+        setTotalInwards(res.data.meta.total || 0);
+        setTotalCountAllTime(res.data.meta.totalCountAllTime || 0);
         setTotalValueAllTime(res.data.meta.totalValueAllTime || 0);
         setTotalUnitsAllTime(res.data.meta.totalUnitsAllTime || 0);
       }
@@ -341,7 +371,9 @@ export const StockInward: React.FC = () => {
 
       toast.success(`Goods Inward Note '${res.data.data.inwardNumber}' created successfully! Stock updated.`);
       setShowAddModal(false);
-      fetchInwards();
+      // Newest entries sort first; jump to page 1 so the new note is visible.
+      if (page !== 1) setPage(1);
+      else fetchInwards();
       fetchComponents();
 
       // Open print slip for newly created inward
@@ -363,15 +395,6 @@ export const StockInward: React.FC = () => {
     window.print();
   };
 
-  const filteredInwards = inwards.filter((inv) => {
-    const q = search.toLowerCase();
-    return (
-      inv.inwardNumber.toLowerCase().includes(q) ||
-      inv.supplierName.toLowerCase().includes(q) ||
-      (inv.billNumber && inv.billNumber.toLowerCase().includes(q))
-    );
-  });
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -392,7 +415,7 @@ export const StockInward: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Total Inward Notes"
-          value={inwards.length}
+          value={totalCountAllTime}
           icon={FileText}
           subtitle="Cumulative GIN vouchers logged"
           iconBgClass="bg-[#168060]/10"
@@ -496,7 +519,7 @@ export const StockInward: React.FC = () => {
             <tbody className="divide-y divide-[#E6E3DE]/60">
               {loading ? (
                 <TableSkeleton rows={6} cols={8} />
-              ) : filteredInwards.length === 0 ? (
+              ) : inwards.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12">
                     <EmptyState
@@ -520,7 +543,7 @@ export const StockInward: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredInwards.map((inward) => (
+                inwards.map((inward) => (
                   <tr key={inward._id} className="tr-enterprise group">
                     <td className="td-enterprise">
                       <button
@@ -574,6 +597,17 @@ export const StockInward: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          total={totalInwards}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          itemLabel="inward entries"
+        />
       </div>
 
       {/* ADD STOCK INWARD MODAL */}
@@ -653,7 +687,7 @@ export const StockInward: React.FC = () => {
                   placeholder="e.g. INV-2026-9041"
                   value={billNumber}
                   onChange={(e) => setBillNumber(e.target.value)}
-                  className="font-mono uppercase"
+                  className="font-mono uppercase placeholder:normal-case placeholder:font-sans"
                   hasError={!!fieldErrors['billNumber']}
                 />
               </FormField>
@@ -706,18 +740,21 @@ export const StockInward: React.FC = () => {
               </div>
             </div>
 
-            <div className="border border-[#E6E3DE] rounded-xl overflow-visible shadow-xs">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[#F7F6F3] text-[11px] font-semibold uppercase text-[#6B6863] border-b border-[#E6E3DE]">
+            {/* overflow-x-auto is safe here: SearchableSelect renders its dropdown in a portal. */}
+            <div className="border border-[#E6E3DE] rounded-xl overflow-x-auto bg-white">
+              <table className="w-full min-w-[680px] text-left text-sm">
+                <thead>
                   <tr>
-                    <th className="py-2.5 px-3 w-5/12">Select Component</th>
-                    <th className="py-2.5 px-3 w-2/12 text-right">Inward Qty</th>
-                    <th className="py-2.5 px-3 w-2/12 text-right">Unit Rate (₹)</th>
-                    <th className="py-2.5 px-3 w-2/12 text-right">Amount (₹)</th>
-                    <th className="py-2.5 px-3 w-1/12 text-center">Action</th>
+                    <th className="th-enterprise w-[44%]">Component</th>
+                    <th className="th-enterprise w-[16%] text-right">Inward Qty</th>
+                    <th className="th-enterprise w-[16%] text-right">Unit Rate (₹)</th>
+                    <th className="th-enterprise w-[16%] text-right">Amount (₹)</th>
+                    <th className="th-enterprise w-[8%] text-center">
+                      <span className="sr-only">Remove</span>
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E6E3DE]/60">
+                <tbody>
                   {items.map((row, idx) => {
                     const compOptions = componentsList.map((c) => ({
                       value: c._id,
@@ -728,8 +765,8 @@ export const StockInward: React.FC = () => {
                     }));
 
                     return (
-                      <tr key={idx} className="hover:bg-[#FAF9F7]">
-                        <td className="py-2 px-3">
+                      <tr key={idx}>
+                        <td className="td-enterprise align-top whitespace-normal">
                           <SearchableSelect
                             options={compOptions}
                             value={row.componentId}
@@ -742,10 +779,10 @@ export const StockInward: React.FC = () => {
                             <FormError message={fieldErrors[`items.${idx}.componentId`]} className="mt-1" />
                           )}
                           {row.name && (
-                            <div className="text-[11px] text-[#A69B8D] mt-1 truncate pl-1">{row.name}</div>
+                            <div className="text-[11.5px] text-[#8A847C] mt-1 truncate pl-1">{row.name}</div>
                           )}
                         </td>
-                        <td className="py-2 px-3 align-top">
+                        <td className="td-enterprise align-top">
                           <ValidatedInput
                             type="number"
                             min="1"
@@ -758,7 +795,7 @@ export const StockInward: React.FC = () => {
                             <FormError message={fieldErrors[`items.${idx}.qty`]} className="mt-1" />
                           )}
                         </td>
-                        <td className="py-2 px-3 align-top">
+                        <td className="td-enterprise align-top">
                           <ValidatedInput
                             type="number"
                             step="0.01"
@@ -772,31 +809,38 @@ export const StockInward: React.FC = () => {
                             <FormError message={fieldErrors[`items.${idx}.unitRate`]} className="mt-1" />
                           )}
                         </td>
-                        <td className="py-2 px-3 text-right font-mono font-bold text-[#171717] pt-4">
-                          ₹{row.totalAmount.toFixed(2)}
+                        <td className="td-enterprise align-top">
+                          <div className="h-10 flex items-center justify-end font-mono font-semibold text-[#171717]">
+                            ₹{row.totalAmount.toFixed(2)}
+                          </div>
                         </td>
-                        <td className="py-2 px-3 text-center pt-3">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveRow(idx)}
-                            className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
-                            title="Delete row"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <td className="td-enterprise align-top">
+                          <div className="h-10 flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveRow(idx)}
+                              className="p-1.5 rounded-[8px] text-[#A69B8D] hover:text-[#C2413A] hover:bg-[#C2413A]/[0.06] transition-colors"
+                              title="Remove line"
+                              aria-label="Remove line"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
-                <tfoot className="bg-[#F7F6F3] border-t border-[#E6E3DE] font-semibold text-xs">
+                <tfoot className="bg-[#FAF9F7] border-t border-[#E6E3DE] text-[12.5px]">
                   <tr>
-                    <td className="py-2.5 px-3 text-[#6B6863]">Total: {items.length} Line Items</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#171717]">
-                      {grandTotalQty.toLocaleString()} units
+                    <td className="py-3 pl-5 pr-3 text-[#6B6863]">
+                      {items.length} line {items.length === 1 ? 'item' : 'items'}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-[#6B6863]">Grand Total:</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#171717] text-sm">
+                    <td className="py-3 px-3 text-right font-mono font-semibold text-[#171717]">
+                      {grandTotalQty.toLocaleString()} <span className="font-sans font-normal text-[#8A847C]">units</span>
+                    </td>
+                    <td className="py-3 px-3 text-right text-[#6B6863]">Grand total</td>
+                    <td className="py-3 px-3 text-right font-mono font-bold text-[#171717] text-[14px]">
                       ₹{grandTotalAmount.toFixed(2)}
                     </td>
                     <td />

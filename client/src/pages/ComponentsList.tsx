@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,6 +40,8 @@ import {
   FileDown,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
+import { TablePagination } from '../components/ui/TablePagination';
+import { usePagination } from '../hooks/usePagination';
 
 interface ComponentItem {
   _id: string;
@@ -71,6 +73,9 @@ export const ComponentsList: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   const [components, setComponents] = useState<ComponentItem[]>([]);
+  const [totalComponents, setTotalComponents] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [categories, setCategories] = useState<MasterOption[]>([]);
   const [units, setUnits] = useState<MasterOption[]>([]);
   const [locations, setLocations] = useState<MasterOption[]>([]);
@@ -88,6 +93,7 @@ export const ComponentsList: React.FC = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [activeComponent, setActiveComponent] = useState<ComponentItem | null>(null);
   const [componentLedger, setComponentLedger] = useState<any[]>([]);
+  const ledgerPagination = usePagination(componentLedger, activeComponent?._id);
 
   // Specs state for Add Component
   const [specKey, setSpecKey] = useState('');
@@ -106,7 +112,7 @@ export const ComponentsList: React.FC = () => {
   // React Hook Form for Add Component
   const addForm = useForm<ComponentFormData>({
     resolver: zodResolver(componentSchema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
       partCode: '',
@@ -124,7 +130,7 @@ export const ComponentsList: React.FC = () => {
   // React Hook Form for Stock Adjustment
   const adjustForm = useForm<StockAdjustmentFormData>({
     resolver: zodResolver(stockAdjustmentSchema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
       qtyChange: 0,
@@ -137,9 +143,28 @@ export const ComponentsList: React.FC = () => {
     fetchMasters();
   }, []);
 
+  // Server-side pagination. When a filter changes while on a later page,
+  // jump back to page 1 first (the effect then re-runs and fetches once).
+  const filterKey = `${search}|${selectedCategory}|${lowStockOnly}`;
+  const lastFilterKey = useRef(filterKey);
   useEffect(() => {
+    if (lastFilterKey.current !== filterKey) {
+      lastFilterKey.current = filterKey;
+      if (page !== 1) {
+        setPage(1);
+        return;
+      }
+    }
     fetchComponents();
-  }, [search, selectedCategory, lowStockOnly]);
+  }, [filterKey, page, pageSize]);
+
+  const buildFilterParams = () => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (selectedCategory) params.append('categoryId', selectedCategory);
+    if (lowStockOnly) params.append('lowStockOnly', 'true');
+    return params;
+  };
 
   const fetchMasters = async () => {
     try {
@@ -161,13 +186,13 @@ export const ComponentsList: React.FC = () => {
     try {
       setLoading(true);
       setErrorMsg('');
-      const params = new URLSearchParams();
-      if (search) params.append('search', search);
-      if (selectedCategory) params.append('categoryId', selectedCategory);
-      if (lowStockOnly) params.append('lowStockOnly', 'true');
+      const params = buildFilterParams();
+      params.append('page', String(page));
+      params.append('limit', String(pageSize));
 
       const res = await api.get(`/components?${params.toString()}`);
       setComponents(res.data.data);
+      setTotalComponents(res.data.meta?.total ?? res.data.data.length);
     } catch (err: any) {
       console.error('Failed to load components:', err);
       setErrorMsg(err.response?.data?.message || 'Failed to load components');
@@ -282,9 +307,21 @@ export const ComponentsList: React.FC = () => {
     setFormError('');
   };
 
-  const handleExportCSV = () => {
+  // Exports every component matching the current filters, not just the
+  // visible page.
+  const handleExportCSV = async () => {
+    let allComponents: ComponentItem[];
+    try {
+      const params = buildFilterParams();
+      params.append('limit', String(Math.max(totalComponents, 1)));
+      const res = await api.get(`/components?${params.toString()}`);
+      allComponents = res.data.data;
+    } catch (err: any) {
+      handleApiError(err, undefined, 'Failed to export components');
+      return;
+    }
     const headers = ['Part Code', 'Name', 'Category', 'Package', 'In Store Stock', 'Reserved', 'With Vendor', 'Min Stock', 'Unit', 'Rate/Unit (INR)', 'Location'];
-    const rows = components.map((c) => [
+    const rows = allComponents.map((c) => [
       c.partCode,
       `"${c.name.replace(/"/g, '""')}"`,
       `"${c.categoryId?.name || ''}"`,
@@ -297,14 +334,16 @@ export const ComponentsList: React.FC = () => {
       c.ratePerUnit,
       `"${c.locationId?.name || ''}"`,
     ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csvContent));
-    link.setAttribute('download', `wave_components_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.href = url;
+    link.download = `wave_components_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Component catalog exported to CSV.');
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${allComponents.length} components to CSV.`);
   };
 
   const handleDownloadBulkTemplate = () => {
@@ -402,7 +441,7 @@ export const ComponentsList: React.FC = () => {
       <PageHeader
         icon={Cpu}
         title="Component Stock & Catalog"
-        badge={<span className="badge-status badge-status-neutral text-[11px]">{components.length} items</span>}
+        badge={<span className="badge-status badge-status-neutral text-[11px]">{totalComponents} items</span>}
         description="Active electronic components, storage balances, and immutable movement ledger."
         actions={
           <>
@@ -621,6 +660,17 @@ export const ComponentsList: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          total={totalComponents}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          itemLabel="components"
+        />
       </div>
 
       {/* ================= MODAL: ADD COMPONENT ================= */}
@@ -1065,7 +1115,7 @@ export const ComponentsList: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E6E3DE]/60 font-mono">
-                    {componentLedger.map((row) => (
+                    {ledgerPagination.pageItems.map((row) => (
                       <tr key={row._id} className="tr-enterprise">
                         <td className="td-enterprise text-[#6B6863] text-xs">
                           {new Date(row.createdAt).toLocaleDateString()} {new Date(row.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1096,6 +1146,14 @@ export const ComponentsList: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              <TablePagination
+                page={ledgerPagination.page}
+                pageSize={ledgerPagination.pageSize}
+                total={ledgerPagination.total}
+                onPageChange={ledgerPagination.setPage}
+                onPageSizeChange={ledgerPagination.setPageSize}
+                itemLabel="movements"
+              />
             </div>
           </div>
         </Modal>

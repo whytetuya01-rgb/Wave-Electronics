@@ -7,6 +7,7 @@ import { Vendor } from '../models/Vendor.js';
 import { JobReceipt } from '../models/JobReceipt.js';
 import { computeJobReconciliation } from './jobReceiptController.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { escapeRegex } from '../utils/regex.js';
 
 /**
  * 1. Component Stock Report
@@ -23,7 +24,7 @@ export const getComponentStockReport = async (req: AuthRequest, res: Response): 
     }
 
     if (search && typeof search === 'string' && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(escapeRegex(search.trim()), 'i');
       query.$or = [{ partCode: searchRegex }, { name: searchRegex }, { package: searchRegex }];
     }
 
@@ -137,7 +138,7 @@ export const getLowStockReport = async (req: AuthRequest, res: Response): Promis
     }
 
     if (search && typeof search === 'string' && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(escapeRegex(search.trim()), 'i');
       query.$or = [{ partCode: searchRegex }, { name: searchRegex }, { package: searchRegex }];
     }
 
@@ -234,7 +235,7 @@ export const getStockLedgerReport = async (req: AuthRequest, res: Response): Pro
     }
 
     if (search && typeof search === 'string' && search.trim()) {
-      query.referenceNo = new RegExp(search.trim(), 'i');
+      query.referenceNo = new RegExp(escapeRegex(search.trim()), 'i');
     }
 
     const maxLimit = Math.min(parseInt(limit as string, 10) || 200, 500);
@@ -377,7 +378,7 @@ export const getPendingJobReceiptsReport = async (req: AuthRequest, res: Respons
     }
 
     if (search && typeof search === 'string' && search.trim()) {
-      query.jobNumber = new RegExp(search.trim(), 'i');
+      query.jobNumber = new RegExp(escapeRegex(search.trim()), 'i');
     }
 
     const jobs = await Job.find(query)
@@ -494,7 +495,7 @@ export const getJobReconciliationReport = async (req: AuthRequest, res: Response
     }
 
     if (search && typeof search === 'string' && search.trim()) {
-      query.jobNumber = new RegExp(search.trim(), 'i');
+      query.jobNumber = new RegExp(escapeRegex(search.trim()), 'i');
     }
 
     const maxLimit = Math.min(parseInt(limit as string, 10) || 50, 100);
@@ -700,7 +701,7 @@ export const getJobConsumptionReport = async (req: AuthRequest, res: Response): 
       query.vendorId = vendorId;
     }
     if (search && typeof search === 'string' && search.trim()) {
-      query.jobNumber = new RegExp(search.trim(), 'i');
+      query.jobNumber = new RegExp(escapeRegex(search.trim()), 'i');
     }
 
     const jobs = await Job.find(query).populate('vendorId', 'name').sort({ updatedAt: -1 }).limit(100).lean();

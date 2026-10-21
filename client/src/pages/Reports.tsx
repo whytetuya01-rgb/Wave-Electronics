@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { api } from '../api/client';
 import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -34,6 +35,8 @@ import {
   PieChart,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
+import { TablePagination } from '../components/ui/TablePagination';
+import { usePagination } from '../hooks/usePagination';
 
 type ReportTab =
   | 'component-stock'
@@ -224,6 +227,24 @@ export const Reports: React.FC = () => {
     }
   };
 
+  // Only one report tab is visible at a time, so one pagination state serves
+  // all eight; it resets to page 1 whenever the tab or any filter changes.
+  const REPORT_ROWS: Record<ReportTab, { rows: any[]; label: string }> = {
+    'component-stock': { rows: componentStockData.data || [], label: 'components' },
+    'low-stock': { rows: lowStockData.data || [], label: 'components' },
+    'stock-ledger': { rows: ledgerData.data || [], label: 'transactions' },
+    'material-with-vendors': { rows: vendorMaterialData.componentsWithVendors || [], label: 'components' },
+    'pending-jobs': { rows: pendingJobsData.data || [], label: 'jobs' },
+    'job-reconciliation': { rows: reconciliationData.data || [], label: 'jobs' },
+    'vendor-performance': { rows: vendorPerformanceData.data || [], label: 'vendors' },
+    'job-consumption': { rows: jobConsumptionData.data || [], label: 'jobs' },
+  };
+  const reportItemLabel = REPORT_ROWS[activeTab].label;
+  const reportPagination = usePagination(
+    REPORT_ROWS[activeTab].rows,
+    `${activeTab}|${search}|${categoryFilter}|${statusFilter}|${txTypeFilter}|${vendorFilter}|${startDate}|${endDate}`
+  );
+
   // Generic CSV Exporter
   const handleExportCSV = () => {
     let headers: string[] = [];
@@ -397,8 +418,13 @@ export const Reports: React.FC = () => {
     toast.success('Report exported to CSV successfully');
   };
 
+  // Printing should produce the whole report, not just the visible page:
+  // expand to every row synchronously, print, then restore the page size.
   const handlePrint = () => {
+    const previousPageSize = reportPagination.pageSize;
+    flushSync(() => reportPagination.setPageSize(Math.max(reportPagination.total, 1)));
     window.print();
+    reportPagination.setPageSize(previousPageSize);
   };
 
   return (
@@ -870,7 +896,7 @@ export const Reports: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  componentStockData.data.map((c) => (
+                  reportPagination.pageItems.map((c) => (
                     <tr key={c._id} className="tr-enterprise group">
                       <td className="td-enterprise font-mono font-bold text-[#171717]">{c.partCode}</td>
                       <td className="td-enterprise whitespace-normal min-w-[200px] max-w-[260px]">
@@ -928,6 +954,14 @@ export const Reports: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={reportPagination.page}
+            pageSize={reportPagination.pageSize}
+            total={reportPagination.total}
+            onPageChange={reportPagination.setPage}
+            onPageSizeChange={reportPagination.setPageSize}
+            itemLabel={reportItemLabel}
+          />
         </div>
       )}
 
@@ -963,7 +997,7 @@ export const Reports: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  lowStockData.data.map((c) => (
+                  reportPagination.pageItems.map((c) => (
                     <tr key={c._id} className="tr-enterprise group">
                       <td className="td-enterprise font-mono font-bold text-[#171717]">
                         <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#FAF9F7] text-[#171717] border border-[#E6E3DE]">
@@ -1013,6 +1047,14 @@ export const Reports: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={reportPagination.page}
+            pageSize={reportPagination.pageSize}
+            total={reportPagination.total}
+            onPageChange={reportPagination.setPage}
+            onPageSizeChange={reportPagination.setPageSize}
+            itemLabel={reportItemLabel}
+          />
         </div>
       )}
 
@@ -1047,7 +1089,7 @@ export const Reports: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  ledgerData.data.map((tx) => (
+                  reportPagination.pageItems.map((tx) => (
                     <tr key={tx._id} className="tr-enterprise group">
                       <td className="td-enterprise">
                         <div className="text-[#171717]">
@@ -1099,6 +1141,14 @@ export const Reports: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={reportPagination.page}
+            pageSize={reportPagination.pageSize}
+            total={reportPagination.total}
+            onPageChange={reportPagination.setPage}
+            onPageSizeChange={reportPagination.setPageSize}
+            itemLabel={reportItemLabel}
+          />
         </div>
       )}
 
@@ -1132,7 +1182,7 @@ export const Reports: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  vendorMaterialData.componentsWithVendors.map((c) => (
+                  reportPagination.pageItems.map((c) => (
                     <tr key={c._id} className="tr-enterprise group">
                       <td className="td-enterprise font-mono font-bold text-[#171717]">
                         <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#FAF9F7] text-[#171717] border border-[#E6E3DE]">
@@ -1163,6 +1213,14 @@ export const Reports: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={reportPagination.page}
+            pageSize={reportPagination.pageSize}
+            total={reportPagination.total}
+            onPageChange={reportPagination.setPage}
+            onPageSizeChange={reportPagination.setPageSize}
+            itemLabel={reportItemLabel}
+          />
         </div>
       )}
 
@@ -1197,7 +1255,7 @@ export const Reports: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  pendingJobsData.data.map((j) => (
+                  reportPagination.pageItems.map((j) => (
                     <tr key={j._id} className="tr-enterprise group">
                       <td className="td-enterprise font-mono font-bold text-[#807365]">
                         {j.jobNumber}
@@ -1261,6 +1319,14 @@ export const Reports: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={reportPagination.page}
+            pageSize={reportPagination.pageSize}
+            total={reportPagination.total}
+            onPageChange={reportPagination.setPage}
+            onPageSizeChange={reportPagination.setPageSize}
+            itemLabel={reportItemLabel}
+          />
         </div>
       )}
 
@@ -1294,7 +1360,7 @@ export const Reports: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  reconciliationData.data.map((j) => (
+                  reportPagination.pageItems.map((j) => (
                     <tr key={j._id} className="tr-enterprise group">
                       <td className="td-enterprise font-mono font-bold text-[#807365]">
                         {j.jobNumber}
@@ -1350,6 +1416,14 @@ export const Reports: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={reportPagination.page}
+            pageSize={reportPagination.pageSize}
+            total={reportPagination.total}
+            onPageChange={reportPagination.setPage}
+            onPageSizeChange={reportPagination.setPageSize}
+            itemLabel={reportItemLabel}
+          />
         </div>
       )}
 
@@ -1383,7 +1457,7 @@ export const Reports: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  vendorPerformanceData.data.map((v) => (
+                  reportPagination.pageItems.map((v) => (
                     <tr key={v.vendorId} className="tr-enterprise group">
                       <td className="td-enterprise font-medium text-[#171717]">{v.vendorName}</td>
                       <td className="td-enterprise text-right font-mono font-bold text-[#171717]">{v.jobsCompleted}</td>
@@ -1410,6 +1484,14 @@ export const Reports: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={reportPagination.page}
+            pageSize={reportPagination.pageSize}
+            total={reportPagination.total}
+            onPageChange={reportPagination.setPage}
+            onPageSizeChange={reportPagination.setPageSize}
+            itemLabel={reportItemLabel}
+          />
         </div>
       )}
 
@@ -1427,7 +1509,7 @@ export const Reports: React.FC = () => {
               />
             </div>
           ) : (
-            jobConsumptionData.data.map((j) => (
+            reportPagination.pageItems.map((j) => (
               <div key={j._id} className="enterprise-card overflow-hidden">
                 <div className="px-4 py-3 border-b border-[#E6E3DE] bg-[#FAF9F7] flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-[#171717]">
@@ -1480,6 +1562,19 @@ export const Reports: React.FC = () => {
               </div>
             ))
           )}
+          {jobConsumptionData.data.length > 0 && (
+            <div className="enterprise-card overflow-hidden">
+              <TablePagination
+                page={reportPagination.page}
+                pageSize={reportPagination.pageSize}
+                total={reportPagination.total}
+                onPageChange={reportPagination.setPage}
+                onPageSizeChange={reportPagination.setPageSize}
+                itemLabel={reportItemLabel}
+                className="!border-t-0"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -1492,7 +1587,7 @@ export const Reports: React.FC = () => {
               Enterprise Advanced Reports Roadmap
             </h4>
             <p className="text-xs text-[#716B64]">
-              The 6 operational reports above utilize authoritative database models, real ledger transactions, and job reconciliation algorithms. The following advanced analytical modules are designated for Phase 2:
+              The operational reports above utilize authoritative database models, real ledger transactions, and job reconciliation algorithms. The following advanced analytical modules are designated for Phase 2:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
               <div className="p-3.5 rounded-[10px] bg-white border border-[#E6E3DE]">

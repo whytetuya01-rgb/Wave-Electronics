@@ -48,6 +48,8 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
+import { TablePagination } from '../components/ui/TablePagination';
+import { usePagination } from '../hooks/usePagination';
 
 export const Jobs: React.FC = () => {
   const { isAdmin, isProduction, isStoreKeeper } = useAuth();
@@ -59,6 +61,7 @@ export const Jobs: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const jobsPagination = usePagination(jobs, `${search}|${statusFilter}`);
   const [actionJobId, setActionJobId] = useState<string | null>(null);
   const [jobFieldErrors, setJobFieldErrors] = useState<Record<string, string>>({});
 
@@ -152,7 +155,9 @@ export const Jobs: React.FC = () => {
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const params: any = { limit: 100 };
+      // Load the full list (paged client-side below) so the KPI cards, which
+      // are computed from every job, stay accurate.
+      const params: any = { limit: 1000 };
       if (search) params.search = search;
       if (statusFilter !== 'all') params.status = statusFilter;
       const res = await api.get('/jobs', { params });
@@ -506,6 +511,12 @@ export const Jobs: React.FC = () => {
     e.preventDefault();
     if (!issueJob) return;
 
+    const negative = issueRows.find((r) => r.qtyToIssue < 0);
+    if (negative) {
+      setIssueError(`${negative.partCode}: quantity to issue cannot be negative`);
+      return;
+    }
+
     const toIssue = issueRows.filter((r) => r.qtyToIssue > 0);
     if (toIssue.length === 0) {
       setIssueError('Please specify quantity > 0 for at least one component.');
@@ -574,6 +585,12 @@ export const Jobs: React.FC = () => {
     if (!receiveChallan) return;
 
     for (const item of receiveRows) {
+      if (item.receivedQty < 0 || item.damagedQty < 0) {
+        const msg = `${item.partCode}: quantities cannot be negative`;
+        setReceiveError(msg);
+        toast.error(msg);
+        return;
+      }
       if (item.receivedQty + item.damagedQty > item.remaining) {
         const msg = `Total (${item.receivedQty + item.damagedQty}) exceeds remaining (${item.remaining}) for ${item.partCode}`;
         setReceiveError(msg);
@@ -683,6 +700,16 @@ export const Jobs: React.FC = () => {
     e.preventDefault();
     if (!jobReceiveTarget) return;
     setJobReceiveError('');
+
+    const negativeCircuit = jobReceiveCircuitRows.find((r) => r.goodQty < 0 || r.rejectedQty < 0);
+    const negativeComponent = jobReceiveComponentRows.find((r) => r.receivedQty < 0 || r.damagedQty < 0);
+    if (negativeCircuit || negativeComponent) {
+      const label = negativeCircuit ? negativeCircuit.circuitCode : negativeComponent!.partCode;
+      const msg = `${label}: quantities cannot be negative`;
+      setJobReceiveError(msg);
+      toast.error(msg);
+      return;
+    }
 
     const circuitLines = jobReceiveCircuitRows.filter((r) => r.goodQty > 0 || r.rejectedQty > 0);
     const componentLines = jobReceiveComponentRows.filter((r) => r.receivedQty > 0 || r.damagedQty > 0);
@@ -918,7 +945,7 @@ export const Jobs: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                jobs.map((job) => (
+                jobsPagination.pageItems.map((job) => (
                   <tr key={job._id} className="tr-enterprise group">
                     <td className="td-enterprise">
                       <div className="font-mono font-semibold text-[#171717]">{job.jobNumber}</div>
@@ -1036,6 +1063,14 @@ export const Jobs: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={jobsPagination.page}
+          pageSize={jobsPagination.pageSize}
+          total={jobsPagination.total}
+          onPageChange={jobsPagination.setPage}
+          onPageSizeChange={jobsPagination.setPageSize}
+          itemLabel="jobs"
+        />
       </div>
 
       <JobFormModal

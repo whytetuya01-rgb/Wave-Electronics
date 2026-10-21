@@ -8,6 +8,7 @@ import { StockTransaction } from '../models/StockTransaction.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { withRequiredTransaction, TransactionUnavailableError } from '../utils/transaction.js';
 import { JobApprovalError } from '../utils/jobErrors.js';
+import { logActivity } from '../services/activityLog.js';
 
 export { JobApprovalError };
 
@@ -172,6 +173,14 @@ export async function performJobApproval(jobId: string, approvedById: mongoose.T
 export const approveJob = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const approvedJob = await performJobApproval(String(req.params.id), req.user!._id);
+    logActivity({
+      userId: String(req.user!._id),
+      userName: req.user!.name,
+      action: 'Approved job and reserved material',
+      module: 'job',
+      targetId: String(approvedJob!._id),
+      targetLabel: approvedJob!.jobNumber,
+    });
     res.json({ message: `Job '${approvedJob!.jobNumber}' approved and material reserved`, data: approvedJob });
   } catch (error: any) {
     if (error instanceof TransactionUnavailableError) {

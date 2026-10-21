@@ -9,6 +9,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import { getNextSequence } from '../utils/sequence.js';
 import { withRequiredTransaction, TransactionUnavailableError } from '../utils/transaction.js';
 import { JobApprovalError } from '../utils/jobErrors.js';
+import { logActivity } from '../services/activityLog.js';
 
 // Generates auto formatted delivery challan number: CHL-YYYYMM-XXXX, same
 // atomic counter pattern as job/inward numbers. Reuses the shared
@@ -322,6 +323,16 @@ export const issueMaterial = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const { items, idempotencyKey } = req.body;
     const result = await performMaterialIssue(String(req.params.id), items, idempotencyKey, req.user!._id);
+    if (!result.alreadyProcessed) {
+      logActivity({
+        userId: String(req.user!._id),
+        userName: req.user!.name,
+        action: 'Issued material and generated delivery challan',
+        module: 'job',
+        targetId: String(req.params.id),
+        targetLabel: result.challan.challanNumber,
+      });
+    }
     const message = result.alreadyProcessed
       ? `Issue already processed as challan '${result.challan.challanNumber}' (duplicate request ignored)`
       : `Material issued - challan '${result.challan.challanNumber}' generated`;

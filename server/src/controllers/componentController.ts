@@ -3,6 +3,7 @@ import { Component } from '../models/Component.js';
 import { StockTransaction } from '../models/StockTransaction.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { withTransaction } from '../utils/transaction.js';
+import { logActivity } from '../services/activityLog.js';
 
 // Get Components with filtering, search, and pagination
 export const getComponents = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -297,6 +298,16 @@ export const adjustStock = async (req: AuthRequest, res: Response): Promise<void
       );
 
       return { component: updatedComponent, ledgerEntry: ledgerEntry[0] };
+    });
+
+    logActivity({
+      userId: String(req.user!._id),
+      userName: req.user!.name,
+      action: `Adjusted stock (${change > 0 ? '+' : ''}${change})`,
+      module: 'component',
+      targetId: String(result.component._id),
+      targetLabel: result.component.partCode,
+      details: `Reason: ${reason}${notes ? ` — ${notes}` : ''}`,
     });
 
     res.json({

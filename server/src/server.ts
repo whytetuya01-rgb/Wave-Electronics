@@ -17,6 +17,8 @@ import jobRoutes from './routes/jobRoutes.js';
 import challanRoutes from './routes/challanRoutes.js';
 import finishedGoodsRoutes from './routes/finishedGoodsRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import activityLogRoutes from './routes/activityLogRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
 
 // Fail fast and loud on a misconfigured production environment - before
 // binding a port or touching the database - rather than silently running
@@ -110,6 +112,8 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/challans', challanRoutes);
 app.use('/api/finished-goods', finishedGoodsRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/activity-logs', activityLogRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Global 404 handler
 app.use((req: Request, res: Response) => {

@@ -6,6 +6,7 @@ import { StockTransaction } from '../models/StockTransaction.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { withTransaction } from '../utils/transaction.js';
 import { getNextSequence } from '../utils/sequence.js';
+import { logActivity } from '../services/activityLog.js';
 
 // Generates auto formatted inward number: INW-YYYYMM-XXXX using an atomic
 // per-month counter, so concurrent requests can never be issued the same
@@ -243,6 +244,16 @@ export const createStockInward = async (req: AuthRequest, res: Response): Promis
       );
 
       return inwardDoc;
+    });
+
+    logActivity({
+      userId: String(req.user!._id),
+      userName: req.user!.name,
+      action: 'Recorded stock inward',
+      module: 'stock_inward',
+      targetId: String(createdInward._id),
+      targetLabel: createdInward.inwardNumber,
+      details: `${createdInward.totalItems} item(s), supplier: ${createdInward.supplierName}`,
     });
 
     res.status(201).json({

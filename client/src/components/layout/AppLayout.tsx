@@ -25,6 +25,8 @@ import {
   Boxes,
   BarChart3,
   Users,
+  History,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -109,6 +111,8 @@ export const AppLayout: React.FC = () => {
       items: [
         { name: 'Master Data', href: '/masters', icon: FolderTree },
         ...(isAdmin ? [{ name: 'Users & Roles', href: '/users', icon: Users }] : []),
+        ...(isAdmin ? [{ name: 'Activity Log', href: '/activity-logs', icon: History }] : []),
+        ...(isAdmin ? [{ name: 'Settings', href: '/settings', icon: SettingsIcon }] : []),
       ],
     },
   ];
@@ -135,6 +139,10 @@ export const AppLayout: React.FC = () => {
         return ['Administration', 'Master Data'];
       case '/users':
         return ['Administration', 'Users & Roles'];
+      case '/activity-logs':
+        return ['Administration', 'Activity Log'];
+      case '/settings':
+        return ['Administration', 'Settings'];
       default:
         return ['Workspace', 'Dashboard'];
     }

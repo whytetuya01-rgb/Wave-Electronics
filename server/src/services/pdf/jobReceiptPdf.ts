@@ -6,6 +6,7 @@ import {
   drawTable,
   drawSignatureFooter,
   COLORS,
+  CompanyInfo,
 } from './pdfLayout.js';
 
 function formatDate(d: Date): string {
@@ -45,6 +46,7 @@ export interface JobReceiptPdfInput {
   circuitReceipts: JobReceiptPdfCircuitLine[];
   componentReturns: JobReceiptPdfReturnLine[];
   remarks?: string;
+  companyInfo?: CompanyInfo;
 }
 
 // Generates the Job Receipt / Finished Circuit Receipt PDF as an in-memory
@@ -58,7 +60,7 @@ export interface JobReceiptPdfInput {
 // arrays on the model.
 export async function generateJobReceiptPdf(input: JobReceiptPdfInput): Promise<Buffer> {
   return renderToBuffer((doc) => {
-    let y = drawCompanyHeader(doc, 'Job Receipt');
+    let y = drawCompanyHeader(doc, 'Job Receipt', input.companyInfo);
 
     const vendorAddressLine = [input.vendorAddress, input.vendorCity].filter(Boolean).join(', ') || undefined;
 

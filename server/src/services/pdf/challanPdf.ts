@@ -6,6 +6,7 @@ import {
   drawTable,
   drawDeclaration,
   drawSignatureFooter,
+  CompanyInfo,
 } from './pdfLayout.js';
 
 function formatDate(d: Date): string {
@@ -55,13 +56,14 @@ export interface ChallanPdfInput {
   // accounting value, so a live lookup doesn't violate the
   // "use stored snapshots" requirement for the financial fields.
   unitByComponentId: Map<string, string>;
+  companyInfo?: CompanyInfo;
 }
 
 // Generates the Delivery Challan PDF as an in-memory Buffer. Pure function:
 // takes already-fetched plain data, touches no database, issues no writes.
 export async function generateChallanPdf(input: ChallanPdfInput): Promise<Buffer> {
   return renderToBuffer((doc) => {
-    let y = drawCompanyHeader(doc, 'Delivery Challan');
+    let y = drawCompanyHeader(doc, 'Delivery Challan', input.companyInfo);
 
     const vendorAddressLine = [input.vendorAddress, input.vendorCity].filter(Boolean).join(', ') || undefined;
 

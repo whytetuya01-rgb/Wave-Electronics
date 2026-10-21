@@ -62,17 +62,34 @@ export function renderToBuffer(build: (doc: PDFKit.PDFDocument) => void): Promis
   });
 }
 
-// Company header: name, optional address/GSTIN (read from env - never
-// fabricated), optional logo (only drawn if the configured file actually
-// exists on disk), and the document title. Returns the Y position content
-// should continue from.
-export function drawCompanyHeader(doc: PDFKit.PDFDocument, documentTitle: string): number {
+export interface CompanyInfo {
+  companyName?: string;
+  address?: string;
+  gstin?: string;
+  logoPath?: string;
+}
+
+// Company header: name, optional address/GSTIN, optional logo (only drawn
+// if the configured file actually exists on disk), and the document title.
+// `companyInfo` (sourced from the admin-editable Settings document) takes
+// precedence when provided; falls back to the original env-var values so
+// existing callers that don't pass it keep working unchanged. Returns the Y
+// position content should continue from.
+export function drawCompanyHeader(
+  doc: PDFKit.PDFDocument,
+  documentTitle: string,
+  companyInfo?: CompanyInfo
+): number {
   const left = doc.page.margins.left;
   const right = doc.page.width - doc.page.margins.right;
   const top = doc.page.margins.top;
 
+  const companyName = companyInfo?.companyName || 'WAVE ELECTRONICS';
+  const address = companyInfo?.address ?? process.env.COMPANY_ADDRESS;
+  const gstin = companyInfo?.gstin ?? process.env.COMPANY_GSTIN;
+  const logoPath = companyInfo?.logoPath ?? process.env.COMPANY_LOGO_PATH;
+
   let textX = left;
-  const logoPath = process.env.COMPANY_LOGO_PATH;
   if (logoPath) {
     try {
       if (fs.existsSync(logoPath)) {
@@ -85,12 +102,10 @@ export function drawCompanyHeader(doc: PDFKit.PDFDocument, documentTitle: string
     }
   }
 
-  doc.font('Helvetica-Bold').fontSize(16).fillColor(COLORS.black).text('WAVE ELECTRONICS', textX, top, { lineBreak: false });
+  doc.font('Helvetica-Bold').fontSize(16).fillColor(COLORS.black).text(companyName.toUpperCase(), textX, top, { lineBreak: false });
 
   let infoY = top + 20;
   doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.muted);
-  const address = process.env.COMPANY_ADDRESS;
-  const gstin = process.env.COMPANY_GSTIN;
   if (address) {
     doc.text(address, textX, infoY, { width: 300, lineBreak: false });
     infoY += 12;

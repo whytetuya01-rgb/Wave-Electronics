@@ -12,6 +12,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import { getNextSequence } from '../utils/sequence.js';
 import { withRequiredTransaction, TransactionUnavailableError } from '../utils/transaction.js';
 import { applyComponentReturnLine, refreshChallanStatus, ReceiptError } from './receiptController.js';
+import { logActivity } from '../services/activityLog.js';
 
 class IdempotentJobReceiptReplayError extends Error {
   idempotencyKey: string;
@@ -466,6 +467,16 @@ export const receiveJobMaterial = async (req: AuthRequest, res: Response): Promi
   try {
     const { idempotencyKey, ...body } = req.body;
     const result = await performJobReceipt(String(req.params.id), body, idempotencyKey, req.user!._id);
+    if (!result.alreadyProcessed) {
+      logActivity({
+        userId: String(req.user!._id),
+        userName: req.user!.name,
+        action: 'Recorded finished circuit receipt',
+        module: 'job_receipt',
+        targetId: String(req.params.id),
+        targetLabel: result.receipt.receiptNumber,
+      });
+    }
     const message = result.alreadyProcessed
       ? `Receipt already processed as '${result.receipt.receiptNumber}' (duplicate request ignored)`
       : `Job receipt '${result.receipt.receiptNumber}' recorded`;

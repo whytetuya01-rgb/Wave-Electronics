@@ -9,6 +9,18 @@ import { Unit } from '../models/Unit.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { generateChallanPdf } from '../services/pdf/challanPdf.js';
 import { generateJobReceiptPdf } from '../services/pdf/jobReceiptPdf.js';
+import { getSettings } from '../models/Settings.js';
+import { CompanyInfo } from '../services/pdf/pdfLayout.js';
+
+async function resolveCompanyInfo(): Promise<CompanyInfo> {
+  const settings = await getSettings();
+  return {
+    companyName: settings.companyName,
+    address: settings.address,
+    gstin: settings.gstin,
+    logoPath: settings.logoPath,
+  };
+}
 
 // Read-only: fetches a Delivery Challan and its owning Job, generates the
 // printable PDF, and streams it as a download. Never writes to the
@@ -43,6 +55,7 @@ export const getChallanPdf = async (req: AuthRequest, res: Response): Promise<vo
       components.map((c) => [c._id.toString(), c.unitId ? unitById.get(c.unitId.toString()) || '-' : '-'])
     );
 
+    const companyInfo = await resolveCompanyInfo();
     const pdfBuffer = await generateChallanPdf({
       challanNumber: challan.challanNumber,
       challanDate: challan.challanDate,
@@ -55,6 +68,7 @@ export const getChallanPdf = async (req: AuthRequest, res: Response): Promise<vo
       jobCircuits: job.jobCircuits,
       materialRequirement: job.materialRequirement,
       unitByComponentId,
+      companyInfo,
     });
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -88,6 +102,7 @@ export const getJobReceiptPdf = async (req: AuthRequest, res: Response): Promise
 
     const vendor = await Vendor.findById(receipt.vendorId).select('name address city gstNumber');
 
+    const companyInfo = await resolveCompanyInfo();
     const pdfBuffer = await generateJobReceiptPdf({
       receiptNumber: receipt.receiptNumber,
       receiptDate: receipt.receiptDate,
@@ -100,6 +115,7 @@ export const getJobReceiptPdf = async (req: AuthRequest, res: Response): Promise
       circuitReceipts: receipt.circuitReceipts,
       componentReturns: receipt.componentReturns,
       remarks: receipt.remarks,
+      companyInfo,
     });
 
     res.setHeader('Content-Type', 'application/pdf');

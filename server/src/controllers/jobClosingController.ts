@@ -4,6 +4,7 @@ import { Job } from '../models/Job.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { withRequiredTransaction, TransactionUnavailableError } from '../utils/transaction.js';
 import { JobApprovalError } from '../utils/jobErrors.js';
+import { logActivity } from '../services/activityLog.js';
 
 // Closes a job (normal or admin short-close). Normal close requires every
 // circuit's ordered quantity to be fully accounted for (good+rejected) and
@@ -81,6 +82,15 @@ export const closeJob = async (req: AuthRequest, res: Response): Promise<void> =
   try {
     const { shortClose, reason } = req.body;
     const result = await performJobClose(String(req.params.id), req.user!._id, { shortClose: Boolean(shortClose), reason });
+    logActivity({
+      userId: String(req.user!._id),
+      userName: req.user!.name,
+      action: result.job.isShortClosed ? 'Short-closed job' : 'Closed job',
+      module: 'job',
+      targetId: String(result.job._id),
+      targetLabel: result.job.jobNumber,
+      details: result.job.isShortClosed ? result.job.closeReason : undefined,
+    });
     res.json({
       message: result.job.isShortClosed ? `Job '${result.job.jobNumber}' short-closed` : `Job '${result.job.jobNumber}' closed`,
       data: result,

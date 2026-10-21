@@ -13,6 +13,8 @@ import { Jobs } from './pages/Jobs';
 import { FinishedGoods } from './pages/FinishedGoods';
 import { Reports } from './pages/Reports';
 import { Users } from './pages/Users';
+import { ActivityLogs } from './pages/ActivityLogs';
+import { Settings } from './pages/Settings';
 import { AppLoader } from './components/ui/Loading';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { GlobalToaster } from './components/ui/GlobalToaster';
@@ -70,6 +72,22 @@ export const App: React.FC = () => {
               element={
                 <AdminRoute>
                   <ErrorBoundary label="Users & Roles"><Users /></ErrorBoundary>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="activity-logs"
+              element={
+                <AdminRoute>
+                  <ErrorBoundary label="Activity Log"><ActivityLogs /></ErrorBoundary>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <AdminRoute>
+                  <ErrorBoundary label="Settings"><Settings /></ErrorBoundary>
                 </AdminRoute>
               }
             />

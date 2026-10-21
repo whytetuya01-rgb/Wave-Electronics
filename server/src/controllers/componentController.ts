@@ -1,6 +1,9 @@
 import { Response } from 'express';
 import { Component } from '../models/Component.js';
 import { StockTransaction } from '../models/StockTransaction.js';
+import { Category } from '../models/Category.js';
+import { Unit } from '../models/Unit.js';
+import { Location } from '../models/Location.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { withTransaction } from '../utils/transaction.js';
 import { logActivity } from '../services/activityLog.js';
@@ -344,5 +347,190 @@ export const deleteComponent = async (req: AuthRequest, res: Response): Promise<
     res.json({ message: 'Component deactivated successfully' });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error deleting component' });
+  }
+};
+
+interface BulkImportRow {
+  partCode: string;
+  name: string;
+  categoryName: string;
+  unitName: string;
+  locationName?: string;
+  package?: string;
+  minStock?: number | string;
+  ratePerUnit?: number | string;
+  openingStock?: number | string;
+}
+
+interface BulkImportRowResult {
+  row: number;
+  partCode: string;
+  status: 'created' | 'error';
+  message?: string;
+}
+
+// Bulk import components from a client-parsed CSV. Re-validates everything
+// server-side (never trusts the preview the client already showed the
+// user) and commits all rows in a single transaction: if any row fails,
+// nothing is created, so a batch can never partially land in the catalog.
+// Reuses exactly the same component+opening-stock-ledger pattern as
+// createComponent, just looped.
+export const bulkImportComponents = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { rows } = req.body as { rows: BulkImportRow[] };
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      res.status(400).json({ message: 'At least one row is required for bulk import' });
+      return;
+    }
+    if (rows.length > 500) {
+      res.status(400).json({ message: 'Bulk import is limited to 500 rows per batch' });
+      return;
+    }
+
+    const errors: BulkImportRowResult[] = [];
+    const seenPartCodes = new Set<string>();
+    const existingPartCodes = new Set(
+      (await Component.find({}).select('partCode').lean()).map((c) => c.partCode)
+    );
+
+    const categories = await Category.find({}).lean();
+    const units = await Unit.find({}).lean();
+    const locations = await Location.find({}).lean();
+    const categoryByName = new Map(categories.map((c) => [c.name.toLowerCase(), c._id]));
+    const unitByName = new Map(units.map((u) => [u.name.toLowerCase(), u._id]));
+    const locationByName = new Map(locations.map((l) => [l.name.toLowerCase(), l._id]));
+
+    const prepared: Array<{
+      row: number;
+      partCode: string;
+      name: string;
+      categoryId: any;
+      unitId: any;
+      locationId: any;
+      package?: string;
+      minStock: number;
+      ratePerUnit: number;
+      openingStock: number;
+    }> = [];
+
+    rows.forEach((raw, idx) => {
+      const rowNum = idx + 1;
+      const partCode = (raw.partCode || '').trim().toUpperCase();
+      const name = (raw.name || '').trim();
+
+      if (!partCode || !name) {
+        errors.push({ row: rowNum, partCode: partCode || '(blank)', status: 'error', message: 'Part code and name are required' });
+        return;
+      }
+      if (seenPartCodes.has(partCode)) {
+        errors.push({ row: rowNum, partCode, status: 'error', message: 'Duplicate part code within this import file' });
+        return;
+      }
+      if (existingPartCodes.has(partCode)) {
+        errors.push({ row: rowNum, partCode, status: 'error', message: 'Part code already exists in the catalog' });
+        return;
+      }
+
+      const categoryId = categoryByName.get((raw.categoryName || '').trim().toLowerCase());
+      if (!categoryId) {
+        errors.push({ row: rowNum, partCode, status: 'error', message: `Category '${raw.categoryName}' not found` });
+        return;
+      }
+      const unitId = unitByName.get((raw.unitName || '').trim().toLowerCase());
+      if (!unitId) {
+        errors.push({ row: rowNum, partCode, status: 'error', message: `Unit '${raw.unitName}' not found` });
+        return;
+      }
+      const locationId = raw.locationName ? locationByName.get(raw.locationName.trim().toLowerCase()) : undefined;
+      if (raw.locationName && !locationId) {
+        errors.push({ row: rowNum, partCode, status: 'error', message: `Storage location '${raw.locationName}' not found` });
+        return;
+      }
+
+      seenPartCodes.add(partCode);
+      prepared.push({
+        row: rowNum,
+        partCode,
+        name,
+        categoryId,
+        unitId,
+        locationId,
+        package: raw.package?.trim(),
+        minStock: Math.max(0, Number(raw.minStock) || 0),
+        ratePerUnit: Math.max(0, Number(raw.ratePerUnit) || 0),
+        openingStock: Math.max(0, Number(raw.openingStock) || 0),
+      });
+    });
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        message: `${errors.length} row(s) failed validation - nothing was imported`,
+        errors,
+      });
+      return;
+    }
+
+    const created = await withTransaction(async (session) => {
+      const results: BulkImportRowResult[] = [];
+      for (const item of prepared) {
+        const componentDocs = await Component.create(
+          [
+            {
+              partCode: item.partCode,
+              name: item.name,
+              categoryId: item.categoryId,
+              unitId: item.unitId,
+              locationId: item.locationId,
+              package: item.package,
+              inStoreStock: item.openingStock,
+              reservedStock: 0,
+              withVendorStock: 0,
+              minStock: item.minStock,
+              ratePerUnit: item.ratePerUnit,
+              isActive: true,
+            },
+          ],
+          session ? { session } : {}
+        );
+        const component = componentDocs[0];
+
+        if (item.openingStock > 0) {
+          await StockTransaction.create(
+            [
+              {
+                componentId: component._id,
+                type: 'OPENING',
+                locationType: 'STORE',
+                qtyChange: item.openingStock,
+                balanceInStoreAfter: item.openingStock,
+                balanceReservedAfter: 0,
+                balanceWithVendorAfter: 0,
+                referenceType: 'OPENING',
+                referenceId: component._id,
+                notes: 'Bulk import opening stock entry',
+                createdById: req.user?._id,
+              },
+            ],
+            session ? { session } : {}
+          );
+        }
+
+        results.push({ row: item.row, partCode: item.partCode, status: 'created' });
+      }
+      return results;
+    });
+
+    logActivity({
+      userId: String(req.user!._id),
+      userName: req.user!.name,
+      action: `Bulk imported ${created.length} component(s)`,
+      module: 'component',
+      details: created.map((c) => c.partCode).join(', ').slice(0, 500),
+    });
+
+    res.status(201).json({ message: `${created.length} component(s) imported successfully`, results: created });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error during bulk import' });
   }
 };

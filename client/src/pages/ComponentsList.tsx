@@ -36,6 +36,8 @@ import {
   CheckCircle2,
   Tag,
   Layers,
+  Upload,
+  FileDown,
 } from 'lucide-react';
 
 interface ComponentItem {
@@ -93,6 +95,12 @@ export const ComponentsList: React.FC = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Bulk Import
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkRows, setBulkRows] = useState<Record<string, string>[]>([]);
+  const [bulkErrors, setBulkErrors] = useState<{ row: number; partCode: string; message: string }[]>([]);
+  const [bulkImporting, setBulkImporting] = useState(false);
 
   // React Hook Form for Add Component
   const addForm = useForm<ComponentFormData>({
@@ -273,6 +281,121 @@ export const ComponentsList: React.FC = () => {
     setFormError('');
   };
 
+  const handleExportCSV = () => {
+    const headers = ['Part Code', 'Name', 'Category', 'Package', 'In Store Stock', 'Reserved', 'With Vendor', 'Min Stock', 'Unit', 'Rate/Unit (INR)', 'Location'];
+    const rows = components.map((c) => [
+      c.partCode,
+      `"${c.name.replace(/"/g, '""')}"`,
+      `"${c.categoryId?.name || ''}"`,
+      c.package || '',
+      c.inStoreStock,
+      c.reservedStock,
+      c.withVendorStock,
+      c.minStock,
+      c.unitId?.shortCode || '',
+      c.ratePerUnit,
+      `"${c.locationId?.name || ''}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const link = document.createElement('a');
+    link.setAttribute('href', encodeURI(csvContent));
+    link.setAttribute('download', `wave_components_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Component catalog exported to CSV.');
+  };
+
+  const handleDownloadBulkTemplate = () => {
+    const headers = ['partCode', 'name', 'categoryName', 'unitName', 'locationName', 'package', 'minStock', 'ratePerUnit', 'openingStock'];
+    const sampleRow = ['RES-1K-0805', 'Resistor 1K 0805', categories[0]?.name || 'Resistors', units[0]?.name || 'Pieces', locations[0]?.name || '', '0805', '100', '0.50', '500'];
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), sampleRow.join(',')].join('\n');
+    const link = document.createElement('a');
+    link.setAttribute('href', encodeURI(csvContent));
+    link.setAttribute('download', 'wave_bulk_import_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const parseCsvFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) {
+        toast.warning('CSV file has no data rows');
+        return;
+      }
+      const headers = lines[0].split(',').map((h) => h.trim());
+      const rows = lines.slice(1).map((line) => {
+        const cells = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+        const row: Record<string, string> = {};
+        headers.forEach((h, i) => {
+          row[h] = cells[i] || '';
+        });
+        return row;
+      });
+      setBulkRows(rows);
+      setBulkErrors([]);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) parseCsvFile(file);
+  };
+
+  // Client-side preview check only - the backend re-validates everything
+  // (duplicate part codes, category/unit existence) before committing, so
+  // this is purely for fast feedback, never the source of truth.
+  const getRowPreviewIssue = (row: Record<string, string>): string | null => {
+    if (!row.partCode?.trim()) return 'Missing part code';
+    if (!row.name?.trim()) return 'Missing name';
+    if (!row.categoryName?.trim()) return 'Missing category';
+    if (!row.unitName?.trim()) return 'Missing unit';
+    if (!categories.some((c) => c.name.toLowerCase() === row.categoryName.trim().toLowerCase())) {
+      return `Unknown category '${row.categoryName}'`;
+    }
+    if (!units.some((u) => u.name.toLowerCase() === row.unitName.trim().toLowerCase())) {
+      return `Unknown unit '${row.unitName}'`;
+    }
+    return null;
+  };
+
+  const handleSubmitBulkImport = async () => {
+    setBulkImporting(true);
+    setBulkErrors([]);
+    try {
+      const payload = bulkRows.map((r) => ({
+        partCode: r.partCode,
+        name: r.name,
+        categoryName: r.categoryName,
+        unitName: r.unitName,
+        locationName: r.locationName,
+        package: r.package,
+        minStock: r.minStock,
+        ratePerUnit: r.ratePerUnit,
+        openingStock: r.openingStock,
+      }));
+      const res = await api.post('/components/bulk-import', { rows: payload });
+      toast.success(res.data.message || 'Bulk import completed successfully.');
+      setShowBulkImportModal(false);
+      setBulkRows([]);
+      fetchComponents();
+    } catch (err: any) {
+      if (err.response?.data?.errors) {
+        setBulkErrors(err.response.data.errors);
+        toast.error(err.response.data.message || 'Bulk import validation failed');
+      } else {
+        handleApiError(err, undefined, 'Bulk import failed');
+      }
+    } finally {
+      setBulkImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-4 w-full">
       {/* Top Header & Primary Action */}
@@ -290,17 +413,34 @@ export const ComponentsList: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button onClick={handleExportCSV} className="btn-secondary" title="Export catalog to CSV">
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#807365]" />
+            <span>Export</span>
+          </button>
           {isStoreKeeper && (
-            <button
-              onClick={() => {
-                resetAddForm();
-                setShowAddModal(true);
-              }}
-              className="btn-primary"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Component</span>
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  setBulkRows([]);
+                  setBulkErrors([]);
+                  setShowBulkImportModal(true);
+                }}
+                className="btn-secondary"
+              >
+                <Upload className="w-3.5 h-3.5 text-[#807365]" />
+                <span>Bulk Import</span>
+              </button>
+              <button
+                onClick={() => {
+                  resetAddForm();
+                  setShowAddModal(true);
+                }}
+                className="btn-primary"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Component</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -973,6 +1113,99 @@ export const ComponentsList: React.FC = () => {
           </div>
         </Modal>
       )}
+
+      {/* BULK IMPORT MODAL */}
+      <Modal
+        isOpen={showBulkImportModal}
+        onClose={() => setShowBulkImportModal(false)}
+        size="2xl"
+        icon={<Upload className="w-5 h-5 text-[#807365]" />}
+        title="Bulk Import Components"
+        subtitle="Download the template, fill it in, upload it, and preview before saving."
+        footer={
+          <>
+            <button type="button" onClick={() => setShowBulkImportModal(false)} className="btn-secondary">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitBulkImport}
+              disabled={bulkImporting || bulkRows.length === 0}
+              className="btn-primary"
+            >
+              {bulkImporting ? <ButtonSpinner /> : <Upload className="w-4 h-4" />}
+              <span>Import {bulkRows.length > 0 ? `${bulkRows.length} Row(s)` : ''}</span>
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <button type="button" onClick={handleDownloadBulkTemplate} className="btn-secondary text-xs">
+              <FileDown className="w-3.5 h-3.5 text-[#807365]" />
+              <span>Download CSV Template</span>
+            </button>
+            <label className="btn-secondary text-xs cursor-pointer">
+              <Upload className="w-3.5 h-3.5 text-[#807365]" />
+              <span>Choose CSV File</span>
+              <input type="file" accept=".csv" onChange={handleBulkFileChange} className="hidden" />
+            </label>
+          </div>
+
+          {bulkErrors.length > 0 && (
+            <div className="p-3 rounded-[10px] bg-[#C2413A]/10 border border-[#C2413A]/30 text-xs text-[#C2413A] space-y-1 max-h-40 overflow-y-auto">
+              <div className="font-semibold">Server validation failed - nothing was imported:</div>
+              {bulkErrors.map((e, i) => (
+                <div key={i}>
+                  Row {e.row} ({e.partCode}): {e.message}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {bulkRows.length > 0 && (
+            <div className="enterprise-card overflow-hidden max-h-96 overflow-y-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr>
+                    <th className="th-enterprise">#</th>
+                    <th className="th-enterprise">Part Code</th>
+                    <th className="th-enterprise">Name</th>
+                    <th className="th-enterprise">Category</th>
+                    <th className="th-enterprise">Unit</th>
+                    <th className="th-enterprise text-right">Opening Stock</th>
+                    <th className="th-enterprise">Issue</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E6E3DE]/60">
+                  {bulkRows.map((row, idx) => {
+                    const issue = getRowPreviewIssue(row);
+                    return (
+                      <tr key={idx} className={issue ? 'bg-[#C2413A]/5' : ''}>
+                        <td className="td-enterprise">{idx + 1}</td>
+                        <td className="td-enterprise font-mono">{row.partCode}</td>
+                        <td className="td-enterprise">{row.name}</td>
+                        <td className="td-enterprise">{row.categoryName}</td>
+                        <td className="td-enterprise">{row.unitName}</td>
+                        <td className="td-enterprise text-right font-mono">{row.openingStock || 0}</td>
+                        <td className="td-enterprise">
+                          {issue ? (
+                            <span className="text-[#C2413A] font-medium">{issue}</span>
+                          ) : (
+                            <span className="text-[#168060] flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> OK
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

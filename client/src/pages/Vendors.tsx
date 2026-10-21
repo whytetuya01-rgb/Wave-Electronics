@@ -10,6 +10,7 @@ import { Modal, ConfirmModal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 import { FormField } from '../components/ui/FormField';
 import { ValidatedInput, ValidatedTextarea } from '../components/ui/ValidatedInput';
+import { SimpleSelect } from '../components/ui/Select';
 import { toast } from '../utils/toast';
 import { handleApiError } from '../utils/apiErrors';
 import { vendorSchema, VendorFormData } from '../utils/validationSchemas';
@@ -44,6 +45,7 @@ interface VendorItem {
   city: string;
   state?: string;
   circuitsCanAssemble?: string[];
+  vendorCircuitRates?: { circuitName: string; ratePerUnit: number }[];
   defaultJobWorkRate: number;
   remarks?: string;
   isActive: boolean;
@@ -74,6 +76,39 @@ export const Vendors: React.FC = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<VendorItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Per-circuit job-work rates: a dynamic array the Zod form schema doesn't
+  // cover (variable length, not a fixed field), so it's managed as plain
+  // local state and merged into the create/update payload alongside the
+  // react-hook-form data rather than through the form itself.
+  const [circuitRates, setCircuitRates] = useState<{ circuitName: string; ratePerUnit: number }[]>([]);
+  const [circuitOptions, setCircuitOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    api
+      .get('/circuits?limit=200')
+      .then((res) => {
+        const list = res.data?.data || res.data || [];
+        setCircuitOptions(list.map((c: any) => c.name).filter(Boolean));
+      })
+      .catch(() => {});
+  }, []);
+
+  const addCircuitRateRow = () => {
+    setCircuitRates((prev) => [...prev, { circuitName: '', ratePerUnit: 0 }]);
+  };
+
+  const updateCircuitRateRow = (index: number, field: 'circuitName' | 'ratePerUnit', value: string) => {
+    setCircuitRates((prev) =>
+      prev.map((row, i) =>
+        i === index ? { ...row, [field]: field === 'ratePerUnit' ? Number(value) || 0 : value } : row
+      )
+    );
+  };
+
+  const removeCircuitRateRow = (index: number) => {
+    setCircuitRates((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // React Hook Form for Vendor
   const form = useForm<VendorFormData>({
@@ -130,6 +165,7 @@ export const Vendors: React.FC = () => {
       circuitsCanAssemble: '',
       remarks: '',
     });
+    setCircuitRates([]);
     setFormError('');
   };
 
@@ -153,6 +189,7 @@ export const Vendors: React.FC = () => {
       circuitsCanAssemble: (v.circuitsCanAssemble || []).join(', '),
       remarks: v.remarks || '',
     });
+    setCircuitRates(v.vendorCircuitRates || []);
     setFormError('');
     setShowEditModal(true);
   };
@@ -183,6 +220,7 @@ export const Vendors: React.FC = () => {
       await api.post('/vendors', {
         ...data,
         circuitsCanAssemble: circuitsArray,
+        vendorCircuitRates: circuitRates.filter((r) => r.circuitName.trim() && r.ratePerUnit > 0),
       });
 
       toast.success(`Vendor '${data.name}' created successfully.`);
@@ -210,6 +248,7 @@ export const Vendors: React.FC = () => {
       await api.put(`/vendors/${selectedVendor._id}`, {
         ...data,
         circuitsCanAssemble: circuitsArray,
+        vendorCircuitRates: circuitRates.filter((r) => r.circuitName.trim() && r.ratePerUnit > 0),
       });
 
       toast.success(`Vendor '${data.name}' updated successfully.`);
@@ -787,6 +826,58 @@ export const Vendors: React.FC = () => {
                 {...form.register('circuitsCanAssemble')}
               />
             </FormField>
+
+            <div className="sm:col-span-2">
+              <FormField
+                label="Per-Circuit Job-Work Rates"
+                optional
+                id="circuit-rates"
+                helperText="Overrides the default rate above for specific circuits. Leave empty to use the default rate for everything."
+              >
+                <div className="space-y-2">
+                  {circuitRates.map((row, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <SimpleSelect
+                          value={row.circuitName}
+                          onValueChange={(val) => updateCircuitRateRow(idx, 'circuitName', val)}
+                          options={circuitOptions.map((name) => ({ value: name, label: name }))}
+                          placeholder="Select circuit..."
+                          triggerClassName="!h-9 text-xs"
+                        />
+                      </div>
+                      <div className="w-32">
+                        <ValidatedInput
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Rate ₹"
+                          className="!h-9 text-xs font-mono"
+                          value={row.ratePerUnit || ''}
+                          onChange={(e) => updateCircuitRateRow(idx, 'ratePerUnit', e.target.value)}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeCircuitRateRow(idx)}
+                        className="btn-ghost p-1.5 rounded-[8px] shrink-0"
+                        title="Remove rate"
+                      >
+                        <X className="w-4 h-4 text-[#A69B8D] hover:text-[#C2413A]" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addCircuitRateRow}
+                    className="btn-secondary !h-8 !px-2.5 text-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Circuit Rate</span>
+                  </button>
+                </div>
+              </FormField>
+            </div>
 
             <div className="sm:col-span-2">
               <FormField

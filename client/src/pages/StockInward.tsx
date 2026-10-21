@@ -6,6 +6,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
+import { SimpleSelect } from '../components/ui/Select';
 import { FormField, FormError } from '../components/ui/FormField';
 import { ValidatedInput } from '../components/ui/ValidatedInput';
 import { toast } from '../utils/toast';
@@ -103,6 +104,14 @@ export const StockInward: React.FC = () => {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  // "Load items from a job shortage list" (jobs whose material requirement
+  // currently exceeds available store stock). Fetched lazily when the Add
+  // modal opens rather than on page load, since shortage jobs are only
+  // relevant while creating an inward entry.
+  const [shortageJobs, setShortageJobs] = useState<{ _id: string; jobNumber: string }[]>([]);
+  const [loadingShortage, setLoadingShortage] = useState(false);
+  const [selectedShortageJobId, setSelectedShortageJobId] = useState('');
 
   useEffect(() => {
     fetchInwards();
@@ -236,7 +245,56 @@ export const StockInward: React.FC = () => {
         remarks: '',
       },
     ]);
+    setSelectedShortageJobId('');
     setShowAddModal(true);
+    fetchShortageJobs();
+  };
+
+  const fetchShortageJobs = async () => {
+    try {
+      setLoadingShortage(true);
+      const res = await api.get('/jobs', { params: { limit: 100 } });
+      const jobs = (res.data.data || []).filter((j: any) => j.hasShortage);
+      setShortageJobs(jobs.map((j: any) => ({ _id: j._id, jobNumber: j.jobNumber })));
+    } catch (err) {
+      console.error('Failed to fetch shortage jobs', err);
+    } finally {
+      setLoadingShortage(false);
+    }
+  };
+
+  const handleLoadFromShortage = async (jobId: string) => {
+    setSelectedShortageJobId(jobId);
+    if (!jobId) return;
+    try {
+      const res = await api.get(`/jobs/${jobId}`);
+      const job = res.data.data;
+      const shortageLines = (job.materialRequirement || []).filter((m: any) => m.hasShortage);
+
+      if (shortageLines.length === 0) {
+        toast.info('This job no longer has a material shortage.');
+        return;
+      }
+
+      const newRows: InwardRow[] = shortageLines.map((m: any) => {
+        const comp = componentsList.find((c) => c._id === m.componentId);
+        return {
+          componentId: m.componentId,
+          partCode: m.partCode,
+          name: m.name,
+          unitShortCode: comp?.unitId?.shortCode || 'NOS',
+          qty: m.shortageQty,
+          unitRate: m.unitRate || comp?.ratePerUnit || 0,
+          totalAmount: Number((m.shortageQty * (m.unitRate || comp?.ratePerUnit || 0)).toFixed(2)),
+          remarks: `Shortage for job ${job.jobNumber}`,
+        };
+      });
+
+      setItems(newRows);
+      toast.success(`Loaded ${newRows.length} shortage item(s) from job '${job.jobNumber}'.`);
+    } catch (err: any) {
+      handleApiError(err, undefined, 'Failed to load job shortage items');
+    }
   };
 
   const handleSubmitInward = async (e: React.FormEvent) => {
@@ -620,7 +678,7 @@ export const StockInward: React.FC = () => {
 
           {/* Line Items Table */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <div>
                 <h4 className="text-sm font-semibold text-[#171717] flex items-center gap-1.5">
                   <Layers className="w-4 h-4 text-[#807365]" />
@@ -628,14 +686,28 @@ export const StockInward: React.FC = () => {
                 </h4>
                 {fieldErrors['items'] && <FormError message={fieldErrors['items']} className="mt-1" />}
               </div>
-              <button
-                type="button"
-                onClick={handleAddRow}
-                className="btn-secondary text-xs px-2.5 py-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Row</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {shortageJobs.length > 0 && (
+                  <div className="w-56">
+                    <SimpleSelect
+                      value={selectedShortageJobId}
+                      onValueChange={handleLoadFromShortage}
+                      options={shortageJobs.map((j) => ({ value: j._id, label: j.jobNumber }))}
+                      placeholder="Load from job shortage..."
+                      disabled={loadingShortage}
+                      triggerClassName="!h-8 text-xs"
+                    />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleAddRow}
+                  className="btn-secondary text-xs px-2.5 py-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Row</span>
+                </button>
+              </div>
             </div>
 
             <div className="border border-[#E6E3DE] rounded-xl overflow-visible shadow-xs">

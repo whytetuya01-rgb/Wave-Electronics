@@ -8,6 +8,8 @@ export interface VendorOption {
   name: string;
   city: string;
   isActive: boolean;
+  defaultJobWorkRate?: number;
+  vendorCircuitRates?: { circuitName: string; ratePerUnit: number }[];
 }
 
 export interface CircuitOption {

@@ -57,6 +57,23 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   fieldErrors = {},
   onSubmit,
 }) => {
+  const selectedVendor = vendors.find((v) => v._id === formData.vendorId);
+
+  const jobWorkRateRows = selectedVendor
+    ? jobCircuitRows
+        .filter((row) => row.circuitId)
+        .map((row) => {
+          const circuit = circuits.find((c) => c._id === row.circuitId);
+          const circuitName = circuit?.name || '';
+          const perCircuitRate = selectedVendor.vendorCircuitRates?.find(
+            (r) => r.circuitName === circuitName
+          )?.ratePerUnit;
+          const rate = perCircuitRate ?? selectedVendor.defaultJobWorkRate ?? 0;
+          return { circuitName: circuitName || 'Unnamed circuit', rate, isOverride: perCircuitRate !== undefined };
+        })
+        .filter((r) => r.rate > 0)
+    : [];
+
   return (
     <Modal
       isOpen={isOpen}
@@ -123,6 +140,21 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             </FormField>
           </div>
         </div>
+
+        {jobWorkRateRows.length > 0 && (
+          <div className="p-3 rounded-[10px] border border-[#A69B8D]/30 bg-[#F7F6F3]/70 text-xs space-y-1">
+            <div className="font-semibold text-[#171717] mb-1">Job-Work Charge ({selectedVendor?.name})</div>
+            {jobWorkRateRows.map((r, i) => (
+              <div key={i} className="flex items-center justify-between text-[#383531]">
+                <span>{r.circuitName}</span>
+                <span className="font-mono font-medium">
+                  ₹{r.rate.toFixed(2)} / unit
+                  {r.isOverride && <span className="text-[10px] text-[#807365] ml-1">(circuit rate)</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Circuit Selection Lines */}
         <div className="space-y-3">

@@ -707,7 +707,14 @@ export const getJobConsumptionReport = async (req: AuthRequest, res: Response): 
 
     const data = jobs.map((job) => {
       const circuits = (job.jobCircuits || []).map((jc: any) => {
-        const consumedQty = jc.receivedGoodQty || 0;
+        // Matches the authoritative consumption rule in performJobReceipt:
+        // a rejected circuit still consumed its raw components to get
+        // built, it just failed QC afterward - so consumption basis is
+        // (good + rejected), not good alone. Keeping this in sync with
+        // computeJobReconciliation's consumedQty is intentional: this report
+        // and the reconciliation screen must never disagree about how much
+        // material a job consumed.
+        const consumedQty = (jc.receivedGoodQty || 0) + (jc.receivedRejectedQty || 0);
         const components = (jc.bomSnapshot || []).map((line: any) => ({
           partCode: line.partCode,
           name: line.name,

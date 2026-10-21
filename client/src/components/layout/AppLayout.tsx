@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Boxes,
   BarChart3,
+  Users,
 } from 'lucide-react';
 
 interface NavItem {
@@ -40,7 +41,7 @@ interface NavGroup {
 }
 
 export const AppLayout: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -107,6 +108,7 @@ export const AppLayout: React.FC = () => {
       title: 'Administration',
       items: [
         { name: 'Master Data', href: '/masters', icon: FolderTree },
+        ...(isAdmin ? [{ name: 'Users & Roles', href: '/users', icon: Users }] : []),
       ],
     },
   ];
@@ -131,6 +133,8 @@ export const AppLayout: React.FC = () => {
         return ['Intelligence & Reports', 'Reports & Analytics'];
       case '/masters':
         return ['Administration', 'Master Data'];
+      case '/users':
+        return ['Administration', 'Users & Roles'];
       default:
         return ['Workspace', 'Dashboard'];
     }

@@ -21,6 +21,35 @@ export const loginSchema = z.object({
 });
 export type LoginFormData = z.infer<typeof loginSchema>;
 
+export const createUserSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Full name is required')
+    .max(100, 'Name must be under 100 characters'),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email address is required')
+    .email('Please enter a valid email address'),
+  password: z
+    .string()
+    .min(6, 'Password must be at least 6 characters')
+    .max(72, 'Password must be under 72 characters'),
+  role: z.enum(['admin', 'store_keeper', 'production'], {
+    errorMap: () => ({ message: 'Please select a role' }),
+  }),
+});
+export type CreateUserFormData = z.infer<typeof createUserSchema>;
+
+export const resetPasswordSchema = z.object({
+  password: z
+    .string()
+    .min(6, 'Password must be at least 6 characters')
+    .max(72, 'Password must be under 72 characters'),
+});
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+
 export const componentSchema = z.object({
   partCode: z
     .string()

@@ -12,6 +12,7 @@ import { Circuits } from './pages/Circuits';
 import { Jobs } from './pages/Jobs';
 import { FinishedGoods } from './pages/FinishedGoods';
 import { Reports } from './pages/Reports';
+import { Users } from './pages/Users';
 import { AppLoader } from './components/ui/Loading';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { GlobalToaster } from './components/ui/GlobalToaster';
@@ -27,6 +28,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <Navigate to="/login" replace />;
   }
 
+  return <>{children}</>;
+};
+
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAdmin } = useAuth();
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
   return <>{children}</>;
 };
 
@@ -56,6 +65,14 @@ export const App: React.FC = () => {
             <Route path="finished-goods" element={<ErrorBoundary label="Finished Goods"><FinishedGoods /></ErrorBoundary>} />
             <Route path="reports" element={<ErrorBoundary label="Reports"><Reports /></ErrorBoundary>} />
             <Route path="masters" element={<ErrorBoundary label="Masters"><Masters /></ErrorBoundary>} />
+            <Route
+              path="users"
+              element={
+                <AdminRoute>
+                  <ErrorBoundary label="Users & Roles"><Users /></ErrorBoundary>
+                </AdminRoute>
+              }
+            />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -33,6 +33,7 @@ import {
   Package,
   Layers,
 } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
 
 interface VendorItem {
   _id: string;
@@ -330,38 +331,28 @@ export const Vendors: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header (Minimalist Enterprise) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Vendors (Job Work Assemblers)</h1>
-          <p className="body-text text-[#6B6863] mt-1 max-w-2xl">
-            Assembly partners who assemble circuits from components we supply. Goods are provided for job-work; nothing is sold to vendors.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleExportCSV}
-            className="btn-secondary"
-            title="Export CSV"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-[#807365]" />
-            <span>Export</span>
-          </button>
-          {canEdit && (
-            <button
-              onClick={handleOpenAdd}
-              className="btn-primary"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Assembler</span>
+      <PageHeader
+        icon={Truck}
+        title="Vendors (Assemblers)"
+        description="Assembly partners who build circuits from components we supply. Goods are provided for job-work; nothing is sold to vendors."
+        actions={
+          <>
+            <button onClick={handleExportCSV} className="btn-secondary" title="Export CSV">
+              <FileSpreadsheet className="w-4 h-4 text-[#807365]" />
+              <span>Export</span>
             </button>
-          )}
-        </div>
-      </div>
+            {canEdit && (
+              <button onClick={handleOpenAdd} className="btn-primary">
+                <Plus className="w-4 h-4" />
+                <span>Add Assembler</span>
+              </button>
+            )}
+          </>
+        }
+      />
 
-      {/* KPI Cards Grid (Black, White & Golden Grey) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Total Vendors"
           value={totalVendors}
@@ -457,20 +448,18 @@ export const Vendors: React.FC = () => {
               <tr>
                 <th className="th-enterprise">Assembler Company</th>
                 <th className="th-enterprise">Contact Info</th>
-                <th className="th-enterprise">Location</th>
-                <th className="th-enterprise">GSTIN</th>
-                <th className="th-enterprise text-right">Job-Work Rate</th>
+                <th className="th-enterprise">Location / GSTIN</th>
+                <th className="th-enterprise text-right">Rate / Unit</th>
                 <th className="th-enterprise">Circuits / Capabilities</th>
-                <th className="th-enterprise text-center">Status</th>
                 <th className="th-enterprise text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E6E3DE]/60">
               {loading ? (
-                <TableSkeleton rows={6} cols={8} />
+                <TableSkeleton rows={6} cols={6} />
               ) : filteredVendors.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12">
+                  <td colSpan={6} className="py-12">
                     <EmptyState
                       icon={Truck}
                       title={search ? 'No matching vendors found' : 'No assembler vendors onboarded'}
@@ -495,23 +484,28 @@ export const Vendors: React.FC = () => {
                 filteredVendors.map((vendor) => (
                   <tr key={vendor._id} className="tr-enterprise group">
                     <td className="td-enterprise">
-                      <div className="font-semibold text-[#171717] group-hover:text-[#807365] transition-colors">
-                        {vendor.name}
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#171717] group-hover:text-[#807365] transition-colors">
+                          {vendor.name}
+                        </span>
+                        <Badge variant={vendor.isActive ? 'success' : 'neutral'} dot>
+                          {vendor.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
                       </div>
                       {vendor.remarks && (
-                        <p className="text-[12px] text-[#6B6863] truncate max-w-xs mt-0.5">{vendor.remarks}</p>
+                        <p className="text-[12px] text-[#6B6863] truncate max-w-[210px] mt-0.5" title={vendor.remarks}>{vendor.remarks}</p>
                       )}
                     </td>
 
                     <td className="td-enterprise">
                       <div className="font-medium text-[#171717]">{vendor.contactPerson}</div>
-                      <div className="flex items-center gap-2.5 text-[12px] text-[#6B6863] mt-0.5">
+                      <div className="flex flex-col gap-0.5 text-[12px] text-[#6B6863] mt-0.5">
                         <span className="flex items-center gap-1 font-mono">
                           <Phone className="w-3 h-3 text-[#A69B8D]" />
                           {vendor.phone}
                         </span>
                         {vendor.email && (
-                          <span className="flex items-center gap-1 text-[#6B6863] truncate max-w-[140px]" title={vendor.email}>
+                          <span className="flex items-center gap-1 text-[#6B6863] truncate max-w-[200px]" title={vendor.email}>
                             <Mail className="w-3 h-3 text-[#A69B8D]" />
                             {vendor.email}
                           </span>
@@ -522,27 +516,23 @@ export const Vendors: React.FC = () => {
                     <td className="td-enterprise">
                       <div className="flex items-center gap-1 text-[#171717]">
                         <MapPin className="w-3.5 h-3.5 text-[#A69B8D]" />
-                        <span>{vendor.city}</span>
+                        <span>
+                          {vendor.city}
+                          {vendor.state && <span className="text-[#6B6863]">, {vendor.state}</span>}
+                        </span>
                       </div>
-                      {vendor.state && <div className="text-[12px] text-[#6B6863] mt-0.5">{vendor.state}</div>}
-                    </td>
-
-                    <td className="td-enterprise font-mono text-[12px] text-[#303030]">
-                      {vendor.gstNumber ? (
-                        <span className="tracking-wide">{vendor.gstNumber}</span>
-                      ) : (
-                        <span className="text-[#A69B8D] italic">Unregistered</span>
-                      )}
+                      <div className="mt-0.5 font-mono text-[11.5px] tracking-wide">
+                        {vendor.gstNumber ? (
+                          <span className="text-[#5E5953]">{vendor.gstNumber}</span>
+                        ) : (
+                          <span className="text-[#A69B8D] italic font-sans">GST unregistered</span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="td-enterprise text-right font-mono">
                       {vendor.defaultJobWorkRate > 0 ? (
-                        <div>
-                          <span className="font-semibold text-[#171717]">
-                            ₹{vendor.defaultJobWorkRate.toFixed(2)}
-                          </span>
-                          <span className="text-[11px] text-[#6B6863] block">/ unit</span>
-                        </div>
+                        <span className="font-semibold text-[#171717]">₹{vendor.defaultJobWorkRate.toFixed(2)}</span>
                       ) : (
                         <span className="text-[#A69B8D]">—</span>
                       )}
@@ -568,12 +558,6 @@ export const Vendors: React.FC = () => {
                       ) : (
                         <span className="text-[#A69B8D] text-[12px]">All circuits</span>
                       )}
-                    </td>
-
-                    <td className="td-enterprise text-center">
-                      <Badge variant={vendor.isActive ? 'success' : 'neutral'} dot>
-                        {vendor.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
                     </td>
 
                     <td className="td-enterprise text-right">

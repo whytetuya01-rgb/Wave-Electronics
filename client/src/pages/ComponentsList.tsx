@@ -39,6 +39,7 @@ import {
   Upload,
   FileDown,
 } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
 
 interface ComponentItem {
   _id: string;
@@ -397,53 +398,46 @@ export const ComponentsList: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 w-full">
-      {/* Top Header & Primary Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#E6E3DE]">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-[#171717] tracking-tight">Component Stock & Catalog</h1>
-            <span className="badge-status badge-status-neutral text-[11px] font-mono">
-              {components.length} items
-            </span>
-          </div>
-          <p className="text-xs text-[#6B6863] mt-0.5">
-            Active electronic components, storage balances, and immutable movement ledger.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button onClick={handleExportCSV} className="btn-secondary" title="Export catalog to CSV">
-            <FileSpreadsheet className="w-3.5 h-3.5 text-[#807365]" />
-            <span>Export</span>
-          </button>
-          {isStoreKeeper && (
-            <>
-              <button
-                onClick={() => {
-                  setBulkRows([]);
-                  setBulkErrors([]);
-                  setShowBulkImportModal(true);
-                }}
-                className="btn-secondary"
-              >
-                <Upload className="w-3.5 h-3.5 text-[#807365]" />
-                <span>Bulk Import</span>
-              </button>
-              <button
-                onClick={() => {
-                  resetAddForm();
-                  setShowAddModal(true);
-                }}
-                className="btn-primary"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Component</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+    <div className="space-y-6 w-full">
+      <PageHeader
+        icon={Cpu}
+        title="Component Stock & Catalog"
+        badge={<span className="badge-status badge-status-neutral text-[11px]">{components.length} items</span>}
+        description="Active electronic components, storage balances, and immutable movement ledger."
+        actions={
+          <>
+            <button onClick={handleExportCSV} className="btn-secondary" title="Export catalog to CSV">
+              <FileSpreadsheet className="w-4 h-4 text-[#807365]" />
+              <span>Export</span>
+            </button>
+            {isStoreKeeper && (
+              <>
+                <button
+                  onClick={() => {
+                    setBulkRows([]);
+                    setBulkErrors([]);
+                    setShowBulkImportModal(true);
+                  }}
+                  className="btn-secondary"
+                >
+                  <Upload className="w-4 h-4 text-[#807365]" />
+                  <span>Bulk Import</span>
+                </button>
+                <button
+                  onClick={() => {
+                    resetAddForm();
+                    setShowAddModal(true);
+                  }}
+                  className="btn-primary"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Component</span>
+                </button>
+              </>
+            )}
+          </>
+        }
+      />
 
       {errorMsg && (
         <div className="p-3.5 bg-[#C2413A]/10 border border-[#C2413A]/25 rounded-[10px] text-sm text-[#C2413A] flex items-center justify-between">
@@ -508,9 +502,8 @@ export const ComponentsList: React.FC = () => {
             <thead className="sticky top-0 z-10 bg-[#FAF9F7]/95">
               <tr>
                 <th className="table-compact-th">Part Code</th>
-                <th className="table-compact-th">Component Name</th>
+                <th className="table-compact-th">Component / Footprint</th>
                 <th className="table-compact-th">Category</th>
-                <th className="table-compact-th">Footprint</th>
                 <th className="table-compact-th text-right">In Store</th>
                 <th className="table-compact-th text-right">Reserved</th>
                 <th className="table-compact-th text-right">Available</th>
@@ -521,10 +514,10 @@ export const ComponentsList: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
               {loading ? (
-                <TableSkeleton rows={8} cols={10} />
+                <TableSkeleton rows={8} cols={9} />
               ) : components.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-16">
+                  <td colSpan={9} className="text-center py-16">
                     <Cpu className="w-8 h-8 text-[#A69B8D] mx-auto mb-2 opacity-60" />
                     <h3 className="text-xs font-bold text-[#171717]">No components match your query</h3>
                     <p className="text-[11px] text-[#716B64] mt-0.5">Try resetting search filters or create a new part.</p>
@@ -550,25 +543,19 @@ export const ComponentsList: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Name */}
-                      <td className="table-compact-td font-medium text-[#171717] max-w-xs truncate">
-                        {comp.name}
+                      {/* Name + Footprint / Package */}
+                      <td className="table-compact-td whitespace-normal min-w-[200px] max-w-[280px]">
+                        <div className="font-medium text-[#171717] leading-snug">{comp.name}</div>
+                        {comp.package && (
+                          <span className="inline-block mt-1 font-mono text-[10.5px] px-1.5 py-px rounded bg-[#F4F2EE] text-[#5E5953]">
+                            {comp.package}
+                          </span>
+                        )}
                       </td>
 
                       {/* Category */}
                       <td className="table-compact-td text-[#6B6863]">
                         {comp.categoryId?.name || '-'}
-                      </td>
-
-                      {/* Footprint / Package */}
-                      <td className="table-compact-td">
-                        {comp.package ? (
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#F7F6F3] text-[#383531]">
-                            {comp.package}
-                          </span>
-                        ) : (
-                          <span className="text-[#A69B8D]">-</span>
-                        )}
                       </td>
 
                       {/* In Store Stock (Physical on shelves) */}
@@ -1141,11 +1128,11 @@ export const ComponentsList: React.FC = () => {
       >
         <div className="space-y-4">
           <div className="flex items-center gap-2.5">
-            <button type="button" onClick={handleDownloadBulkTemplate} className="btn-secondary text-xs">
+            <button type="button" onClick={handleDownloadBulkTemplate} className="btn-secondary btn-sm">
               <FileDown className="w-3.5 h-3.5 text-[#807365]" />
               <span>Download CSV Template</span>
             </button>
-            <label className="btn-secondary text-xs cursor-pointer">
+            <label className="btn-secondary btn-sm cursor-pointer">
               <Upload className="w-3.5 h-3.5 text-[#807365]" />
               <span>Choose CSV File</span>
               <input type="file" accept=".csv" onChange={handleBulkFileChange} className="hidden" />

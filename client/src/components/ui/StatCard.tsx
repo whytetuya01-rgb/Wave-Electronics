@@ -51,38 +51,42 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   if (loading) {
     return (
-      <div className="enterprise-card p-5 animate-pulse">
+      <div className="enterprise-card p-4 sm:p-5 animate-pulse">
         <div className="flex items-center justify-between">
-          <div className="h-4 w-24 bg-[#E8E6E2] rounded"></div>
-          <div className="w-8 h-8 bg-[#E8E6E2] rounded-lg"></div>
+          <div className="h-3.5 w-20 sm:w-24 bg-[#E8E6E2] rounded"></div>
+          <div className="w-8 h-8 bg-[#E8E6E2] rounded-[9px]"></div>
         </div>
-        <div className="mt-3 h-8 w-20 bg-[#E8E6E2] rounded"></div>
-        <div className="mt-2 h-3.5 w-32 bg-[#E8E6E2] rounded"></div>
+        <div className="mt-3 h-7 w-16 sm:w-20 bg-[#E8E6E2] rounded"></div>
+        <div className="mt-2 h-3 w-24 sm:w-32 bg-[#E8E6E2] rounded"></div>
       </div>
     );
   }
 
   return (
     <div
-      className={`enterprise-card p-5 group animate-fade-in-up ${getStaggerClass()} hover:border-[#A69B8D]/40 hover:-translate-y-[1px] hover:shadow-xs transition-all duration-180 ease-smooth`}
+      className={`enterprise-card p-4 sm:p-5 h-full min-w-0 group animate-fade-in-up ${getStaggerClass()} hover:border-[#A69B8D]/45 hover:-translate-y-[1px] transition-all duration-180 ease-smooth`}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium text-[#6B6863] tracking-tight">{title}</span>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[12.5px] sm:text-[13px] font-medium text-[#6B6863] tracking-tight leading-snug">{title}</span>
         <div
-          className={`w-8 h-8 rounded-lg ${iconBgClass} flex items-center justify-center ${iconColorClass} transition-colors duration-180 ease-smooth`}
+          className={`w-8 h-8 rounded-[9px] ${iconBgClass} flex items-center justify-center shrink-0 ${iconColorClass} transition-colors duration-180 ease-smooth`}
         >
           <Icon className="w-4 h-4" />
         </div>
       </div>
-      <div className="mt-2.5 flex items-baseline justify-between">
-        <div className="metric-number text-[#171717]">{value}</div>
+      <div className="mt-2 sm:mt-2.5 flex items-end justify-between gap-2 min-w-0">
+        <div className="text-[22px] sm:text-[28px] font-semibold leading-tight tracking-[-0.025em] tabular-nums text-[#171717] truncate">
+          {value}
+        </div>
         {badge && (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${getBadgeClass(badge.variant)}`}>
+          <span
+            className={`hidden sm:inline-flex items-center px-2 py-0.5 mb-1 rounded-full text-[11px] font-medium border whitespace-nowrap ${getBadgeClass(badge.variant)}`}
+          >
             {badge.label}
           </span>
         )}
       </div>
-      {subtitle && <p className="helper-text mt-1 text-[#6B6863] truncate">{subtitle}</p>}
+      {subtitle && <p className="text-[11.5px] sm:text-[12px] mt-1 text-[#716B64] truncate">{subtitle}</p>}
     </div>
   );
 };

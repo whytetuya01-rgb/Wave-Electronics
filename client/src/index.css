@@ -68,13 +68,26 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Icons: one consistent, slightly lighter stroke across every lucide icon
+   (lucide-react tags each <svg> with .lucide) for a more refined look than
+   the library's default 2px. */
+.lucide {
+  stroke-width: 1.75;
+}
+
 /* Typography Hierarchy */
 .page-title {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.025em;
   color: var(--text-main);
+}
+
+@media (max-width: 639px) {
+  .page-title {
+    font-size: 21px;
+  }
 }
 
 .section-heading {
@@ -164,27 +177,27 @@
 
 /* Buttons (Linear & Attio precision with micro-interactions) */
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-[10px] text-sm font-medium text-white bg-[#141414] hover:bg-[#1C1C1C] border border-[#141414] shadow-xs active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#141414] focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+  @apply inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap text-white bg-[#141414] hover:bg-[#1C1C1C] border border-[#141414] shadow-xs active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#141414] focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
   transition: all var(--motion-standard) var(--ease-smooth);
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-[10px] text-sm font-medium text-[#171717] bg-white hover:bg-[#F7F6F3] border border-[#E6E3DE] hover:border-[#D8D4CE] shadow-xs active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#807365]/30 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+  @apply inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap text-[#171717] bg-white hover:bg-[#F7F6F3] border border-[#E6E3DE] hover:border-[#D8D4CE] shadow-xs active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#807365]/30 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
   transition: all var(--motion-standard) var(--ease-smooth);
 }
 
 .btn-ghost {
-  @apply inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[10px] text-sm font-medium text-[#6B6863] hover:text-[#171717] hover:bg-[#F7F6F3] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#807365]/20 disabled:opacity-50 disabled:pointer-events-none;
+  @apply inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[10px] text-sm font-medium whitespace-nowrap text-[#6B6863] hover:text-[#171717] hover:bg-[#F7F6F3] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#807365]/20 disabled:opacity-50 disabled:pointer-events-none;
   transition: all var(--motion-standard) var(--ease-smooth);
 }
 
 .btn-accent {
-  @apply inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-[10px] text-sm font-medium text-white bg-[#807365] hover:bg-[#6E6255] border border-[#807365] shadow-xs active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#807365]/30 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+  @apply inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap text-white bg-[#807365] hover:bg-[#6E6255] border border-[#807365] shadow-xs active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#807365]/30 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
   transition: all var(--motion-standard) var(--ease-smooth);
 }
 
 .btn-danger {
-  @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[10px] text-sm font-medium text-white bg-[#C2413A] hover:bg-[#A8352F] border border-[#C2413A] shadow-xs active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2413A]/30 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+  @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap text-white bg-[#C2413A] hover:bg-[#A8352F] border border-[#C2413A] shadow-xs active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2413A]/30 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
   transition: all var(--motion-standard) var(--ease-smooth);
 }
 
@@ -227,30 +240,70 @@
               background-color var(--motion-standard) var(--ease-smooth);
 }
 
-/* Tables with refined hover transitions */
-.th-enterprise {
-  @apply py-3 px-4 text-left text-[13px] font-medium text-[#6B6863] uppercase tracking-wider bg-[#F7F6F3]/80 border-b border-[#E6E3DE] select-none;
+/* Data grids: compact single-line uppercase headers, tabular figures,
+   roomier first/last columns, and no doubled border on the final row
+   (the surrounding .enterprise-card already draws that edge).
+
+   Declared in the components layer on purpose: these used to sit after
+   Tailwind's utilities, so their defaults silently overrode the per-column
+   utilities pages put on cells - every text-right header stayed left-aligned
+   and every semantic cell color (green stock, red shortage, muted secondary
+   text) rendered as plain black. In this layer, page utilities win. */
+@layer components {
+  .th-enterprise {
+    @apply py-2.5 px-3 text-left text-[11px] font-semibold text-[#716B64] uppercase tracking-[0.06em] bg-[#FAF9F7] border-b border-[#E6E3DE] select-none whitespace-nowrap align-middle;
+  }
+
+  .td-enterprise {
+    @apply py-3 px-3 text-[13px] text-[#171717] border-b border-[#EFECE7] whitespace-nowrap align-middle;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tr-enterprise {
+    @apply hover:bg-[#FAF9F7];
+    transition: background-color var(--motion-fast) var(--ease-smooth);
+  }
+
+  .table-compact-th {
+    @apply th-enterprise;
+  }
+
+  .table-compact-td {
+    @apply td-enterprise;
+  }
+
+  .table-row-interactive {
+    @apply tr-enterprise;
+  }
 }
 
-.td-enterprise {
-  @apply py-3.5 px-4 text-[13px] text-[#171717] border-b border-[#E6E3DE]/70 whitespace-nowrap;
+.th-enterprise:first-child,
+.td-enterprise:first-child {
+  padding-left: 1.25rem;
 }
 
-.tr-enterprise {
-  @apply hover:bg-[#FAF9F7];
-  transition: background-color var(--motion-fast) var(--ease-smooth);
+.th-enterprise:last-child,
+.td-enterprise:last-child {
+  padding-right: 1.25rem;
 }
 
-.table-compact-th {
-  @apply th-enterprise;
+tbody > tr:last-child > .td-enterprise {
+  border-bottom-width: 0;
 }
 
-.table-compact-td {
-  @apply td-enterprise;
+/* Compact button modifier for dense contexts (table row actions). Declared
+   after the .btn-* classes so it reliably wins over their default sizing. */
+.btn-sm {
+  height: 2rem;
+  padding: 0 0.625rem;
+  gap: 0.375rem;
+  font-size: 12px;
+  border-radius: 8px;
 }
 
-.table-row-interactive {
-  @apply tr-enterprise;
+.btn-sm svg {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 /* Badges */

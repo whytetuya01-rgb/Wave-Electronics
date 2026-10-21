@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { CommandPalette, CommandItem } from './CommandPalette';
 import {
   Cpu,
   LayoutDashboard,
@@ -48,6 +49,44 @@ export const AppLayout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+  // Global Ctrl/Cmd+K opens the page-jump palette from anywhere in the app.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [userMenuOpen]);
+
+  useEffect(() => {
+    setUserMenuOpen(false);
+  }, [location.pathname]);
 
   // Mobile menu scroll lock and keyboard accessibility
   React.useEffect(() => {
@@ -116,6 +155,20 @@ export const AppLayout: React.FC = () => {
       ],
     },
   ];
+
+  const commandItems: CommandItem[] = navigationGroups.flatMap((group) =>
+    group.items
+      .filter((item) => !item.disabled)
+      .map((item) => ({ name: item.name, href: item.href, group: group.title, icon: item.icon }))
+  );
+
+  const userInitials =
+    (user?.name || 'U')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || 'U';
 
   const getBreadcrumbs = () => {
     switch (location.pathname) {
@@ -424,9 +477,9 @@ export const AppLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
-        <header className="no-print h-14 bg-white border-b border-[#E6E3DE] px-4 sm:px-6 lg:px-8 flex items-center justify-between z-10 flex-shrink-0">
+        <header className="no-print h-14 bg-white border-b border-[#E6E3DE] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 z-10 flex-shrink-0">
           {/* Left: Mobile hamburger / Desktop collapse toggle & Breadcrumbs */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -446,41 +499,112 @@ export const AppLayout: React.FC = () => {
               {collapsed ? <PanelLeft className="w-4 h-4 text-[#807365]" /> : <PanelLeftClose className="w-4 h-4 text-[#807365]" />}
             </button>
 
-            <nav className="flex items-center gap-2 text-[13px]" aria-label="Breadcrumb">
-              <span className="font-normal text-[#6B6863]">{breadcrumbs[0]}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-[#A69B8D] shrink-0" />
-              <span className="font-medium text-[#171717] tracking-tight">{breadcrumbs[1]}</span>
+            <nav className="flex items-center gap-2 text-[13px] min-w-0" aria-label="Breadcrumb">
+              <span className="hidden sm:inline font-normal text-[#6B6863] truncate">{breadcrumbs[0]}</span>
+              <ChevronRight className="hidden sm:block w-3.5 h-3.5 text-[#A69B8D] shrink-0" />
+              <span className="font-semibold sm:font-medium text-[#171717] tracking-tight truncate">{breadcrumbs[1]}</span>
             </nav>
           </div>
 
-          {/* Right: Search & Operational Status */}
-          <div className="flex items-center gap-3">
-            {/* Linear-Style Search Input */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-[9px] bg-[#F7F6F3] border border-[#E6E3DE] text-xs text-[#6B6863] hover:border-[#D8D4CE] transition-all duration-180 ease-smooth cursor-pointer shadow-xs active:scale-[0.99]">
+          {/* Right: page-jump palette trigger & account menu */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              className="hidden lg:flex items-center gap-2 h-9 pl-3 pr-1.5 w-60 rounded-[10px] bg-[#FAF9F7] border border-[#E6E3DE] text-[#8A847C] hover:border-[#D8D4CE] hover:bg-white transition-all duration-180 ease-smooth"
+              aria-label="Search pages"
+            >
               <Search className="w-3.5 h-3.5 text-[#807365]" />
-              <span className="text-[13px]">Quick search...</span>
-              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-[6px] bg-white border border-[#E6E3DE] text-[10px] font-mono text-[#807365] shadow-xs">
-                <Command className="w-2.5 h-2.5" /> K
+              <span className="flex-1 text-left text-[13px]">Search pages...</span>
+              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-[6px] bg-white border border-[#E6E3DE] text-[10px] font-mono text-[#807365]">
+                {isMac ? <Command className="w-2.5 h-2.5" /> : 'Ctrl'} K
               </kbd>
-            </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              className="lg:hidden p-2 rounded-[9px] text-[#6B6863] hover:text-[#171717] hover:bg-[#F7F6F3] transition-colors"
+              aria-label="Search pages"
+            >
+              <Search className="w-[18px] h-[18px]" />
+            </button>
 
-            <div className="h-4 w-[1px] bg-[#E6E3DE] hidden sm:block" />
+            <div className="h-5 w-px bg-[#E6E3DE] hidden lg:block" />
 
-            {/* Operational Status (Restrained Minimal Dot) */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-[#F7F6F3] border border-[#E6E3DE] text-xs transition-colors duration-180">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#168060]" />
-              <span className="text-[12px] font-medium text-[#6B6863]">Operational</span>
+            <div className="relative" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen((open) => !open)}
+                className="flex items-center gap-2.5 h-9 pl-1 pr-1 sm:pr-2.5 rounded-[10px] hover:bg-[#F7F6F3] transition-colors duration-180"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+              >
+                <span className="w-7 h-7 rounded-[8px] bg-[#141414] text-[#D9D2C7] flex items-center justify-center text-[11px] font-semibold tracking-wide">
+                  {userInitials}
+                </span>
+                <span className="hidden sm:block text-left leading-tight">
+                  <span className="block text-[12.5px] font-medium text-[#171717] max-w-[140px] truncate">{user?.name}</span>
+                  <span className="block text-[11px] text-[#8A847C] capitalize">{user?.role?.replace('_', ' ')}</span>
+                </span>
+                <ChevronDown
+                  className={`hidden sm:block w-3.5 h-3.5 text-[#A69B8D] transition-transform duration-180 ${userMenuOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {userMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-[#E7E4DE] shadow-[0_16px_40px_-12px_rgba(23,23,23,0.22)] overflow-hidden z-50 modal-dialog-animate"
+                >
+                  <div className="px-4 py-3.5 border-b border-[#EFECE7]">
+                    <p className="text-[13px] font-semibold text-[#171717] truncate">{user?.name}</p>
+                    <p className="text-[12px] text-[#8A847C] truncate">{user?.email}</p>
+                    <div className="mt-2 [&_span]:!bg-[#FAF9F7] [&_span]:!text-[#716B64] [&_span]:!border-[#E7E4DE] [&_svg]:!text-[#807365]">
+                      {getRoleBadge(user?.role)}
+                    </div>
+                  </div>
+                  <div className="p-1.5">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={logout}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-[13px] text-[#C2413A] hover:bg-[#C2413A]/[0.06] transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
 
-        {/* Workspace Canvas (Warm Background: #F7F6F3) with full-width utilization and responsive padding */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#F7F6F3] min-w-0">
-          <div key={location.pathname} className="page-transition-enter w-full min-w-0">
-            <Outlet />
+        {/* Workspace canvas; the inner column is min-h-full so the footer sits at the bottom of short pages. */}
+        <main className="flex-1 overflow-y-auto bg-[#F7F6F3] min-w-0">
+          <div className="min-h-full flex flex-col p-4 sm:p-6 lg:p-8">
+            <div key={location.pathname} className="page-transition-enter w-full min-w-0 flex-1">
+              <Outlet />
+            </div>
+
+            <footer className="no-print mt-10 pt-4 border-t border-[#E6E3DE] flex flex-col sm:flex-row items-center justify-between gap-1.5 text-[12px] text-[#8A847C]">
+              <span className="flex items-center gap-1.5">
+                <Zap className="w-3 h-3 text-[#A69B8D]" />
+                © {new Date().getFullYear()} Wave Electronics · Component Stock &amp; Job Management
+              </span>
+              <span className="hidden md:inline">
+                Press{' '}
+                <kbd className="px-1 py-px rounded-[4px] bg-white border border-[#E6E3DE] font-mono text-[10px] text-[#807365]">
+                  {isMac ? '⌘' : 'Ctrl'}+K
+                </kbd>{' '}
+                to jump to any page
+              </span>
+            </footer>
           </div>
         </main>
       </div>
+
+      <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} items={commandItems} />
     </div>
   );
 };

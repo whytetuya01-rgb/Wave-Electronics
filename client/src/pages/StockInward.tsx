@@ -25,6 +25,7 @@ import {
   Layers,
   IndianRupee,
 } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
 
 interface ComponentOption {
   _id: string;
@@ -373,30 +374,22 @@ export const StockInward: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Stock Inward (Goods Received)</h1>
-          <p className="body-text text-[#6B6863] mt-1 max-w-2xl">
-            Record incoming purchased electronic components. Automatically increments store stock and logs immutable stock ledger transactions.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          {canAddInward && (
-            <button
-              onClick={handleOpenAddModal}
-              className="btn-primary"
-            >
+      <PageHeader
+        icon={PackageCheck}
+        title="Stock Inward"
+        description="Record incoming purchased components. Store stock is incremented and every movement is written to the stock ledger."
+        actions={
+          canAddInward && (
+            <button onClick={handleOpenAddModal} className="btn-primary">
               <Plus className="w-4 h-4" />
               <span>New Inward Entry</span>
             </button>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Total Inward Notes"
           value={inwards.length}
@@ -490,8 +483,7 @@ export const StockInward: React.FC = () => {
           <table className="w-full text-left text-sm">
             <thead>
               <tr>
-                <th className="th-enterprise">GIN Voucher #</th>
-                <th className="th-enterprise">Inward Date</th>
+                <th className="th-enterprise">GIN Voucher / Date</th>
                 <th className="th-enterprise">Supplier / Source</th>
                 <th className="th-enterprise">Bill / Invoice #</th>
                 <th className="th-enterprise text-center">Line Items</th>
@@ -503,10 +495,10 @@ export const StockInward: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-[#E6E3DE]/60">
               {loading ? (
-                <TableSkeleton rows={6} cols={9} />
+                <TableSkeleton rows={6} cols={8} />
               ) : filteredInwards.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12">
+                  <td colSpan={8} className="py-12">
                     <EmptyState
                       icon={PackageCheck}
                       title={search || startDate || endDate ? 'No matching inward records' : 'No stock inward entries recorded'}
@@ -538,13 +530,17 @@ export const StockInward: React.FC = () => {
                         <FileText className="w-3.5 h-3.5 text-[#807365] shrink-0" />
                         <span>{inward.inwardNumber}</span>
                       </button>
-                    </td>
-                    <td className="td-enterprise text-[#6B6863] font-mono text-xs">
-                      {new Date(inward.inwardDate).toLocaleDateString()}
+                      <div className="mt-0.5 pl-5 text-[12px] text-[#6B6863]">
+                        {new Date(inward.inwardDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
                     </td>
                     <td className="td-enterprise">
                       <div className="font-semibold text-[#171717]">{inward.supplierName}</div>
-                      {inward.notes && <div className="text-[12px] text-[#6B6863] truncate max-w-xs">{inward.notes}</div>}
+                      {inward.notes && (
+                        <div className="text-[12px] text-[#6B6863] truncate max-w-[230px]" title={inward.notes}>
+                          {inward.notes}
+                        </div>
+                      )}
                     </td>
                     <td className="td-enterprise font-mono text-xs text-[#303030]">
                       {inward.billNumber || <span className="text-[#A69B8D] italic">—</span>}
@@ -566,7 +562,7 @@ export const StockInward: React.FC = () => {
                     <td className="td-enterprise text-right">
                       <button
                         onClick={() => handleViewSlip(inward)}
-                        className="btn-secondary text-xs px-2.5 py-1"
+                        className="btn-secondary btn-sm"
                       >
                         <Printer className="w-3.5 h-3.5 text-[#807365]" />
                         <span>Print GIN</span>
@@ -702,7 +698,7 @@ export const StockInward: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAddRow}
-                  className="btn-secondary text-xs px-2.5 py-1"
+                  className="btn-secondary btn-sm"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Row</span>

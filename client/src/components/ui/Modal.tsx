@@ -157,15 +157,15 @@ export const Modal: React.FC<ModalProps> & {
 
         {/* Refined White Header */}
         {title && !headerBanner && (
-          <div className="px-6 sm:px-8 py-5 sm:py-5.5 bg-white border-b border-[#E7E4DE] flex items-start justify-between shrink-0">
-            <div className="flex items-start gap-3.5 sm:gap-4 flex-1 min-w-0 pr-4">
+          <div className="px-6 sm:px-7 py-4 sm:py-[18px] bg-white border-b border-[#EFECE7] flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3.5 flex-1 min-w-0 pr-4">
               {icon && (
-                <div className="w-10 h-10 rounded-[10px] bg-[#FAF9F7] border border-[#E7E4DE] text-[#807365] flex items-center justify-center shrink-0 mt-0.5 shadow-xs [&_svg]:w-5 [&_svg]:h-5 [&_svg]:text-[#807365]">
+                <div className="w-10 h-10 rounded-[11px] bg-[#141414] ring-1 ring-[#303030] flex items-center justify-center shrink-0 shadow-[0_4px_12px_-4px_rgba(20,20,20,0.35)] [&_svg]:w-[18px] [&_svg]:h-[18px] [&_svg]:text-[#D9D2C7]">
                   {icon}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg sm:text-[19px] font-semibold text-[#171717] tracking-tight leading-snug break-words">
+                <h3 className="text-[17px] sm:text-[18px] font-semibold text-[#171717] tracking-tight leading-snug break-words">
                   {title}
                 </h3>
                 {subtitle && (
@@ -192,24 +192,24 @@ export const Modal: React.FC<ModalProps> & {
         {/* Content Area: Wrapped in Form if onSubmit is specified */}
         {onSubmit ? (
           <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6 select-text ${bodyClassName}`}>
+            <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-7 py-6 select-text ${bodyClassName}`}>
               {children}
             </div>
 
             {footer && (
-              <div className="px-6 sm:px-8 py-4 bg-[#FAF9F7] border-t border-[#E7E4DE] flex items-center justify-end gap-3 shrink-0">
+              <div className="px-6 sm:px-7 py-3.5 bg-[#FAF9F7] border-t border-[#EFECE7] flex items-center justify-end gap-2.5 shrink-0">
                 {footer}
               </div>
             )}
           </form>
         ) : (
           <>
-            <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6 select-text ${bodyClassName}`}>
+            <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-7 py-6 select-text ${bodyClassName}`}>
               {children}
             </div>
 
             {footer && (
-              <div className="px-6 sm:px-8 py-4 bg-[#FAF9F7] border-t border-[#E7E4DE] flex items-center justify-end gap-3 shrink-0">
+              <div className="px-6 sm:px-7 py-3.5 bg-[#FAF9F7] border-t border-[#EFECE7] flex items-center justify-end gap-2.5 shrink-0">
                 {footer}
               </div>
             )}
@@ -234,19 +234,19 @@ export const ModalHeader: React.FC<{
   className?: string;
 }> = ({ title, subtitle, onClose, icon, badge, action, className = '' }) => (
   <div
-    className={`px-6 sm:px-8 py-5 sm:py-5.5 bg-white border-b border-[#E7E4DE] flex items-start justify-between shrink-0 ${className}`}
+    className={`px-6 sm:px-7 py-4 sm:py-[18px] bg-white border-b border-[#EFECE7] flex items-center justify-between shrink-0 ${className}`}
   >
-    <div className="flex items-start gap-3.5 sm:gap-4 flex-1 min-w-0 pr-4">
+    <div className="flex items-center gap-3.5 flex-1 min-w-0 pr-4">
       {icon && (
         <div
-          className="w-10 h-10 rounded-[10px] bg-[#FAF9F7] border border-[#E7E4DE] text-[#807365] flex items-center justify-center shrink-0 mt-0.5 shadow-xs [&_svg]:w-5 [&_svg]:h-5 [&_svg]:text-[#807365]"
+          className="w-10 h-10 rounded-[11px] bg-[#141414] ring-1 ring-[#303030] flex items-center justify-center shrink-0 shadow-[0_4px_12px_-4px_rgba(20,20,20,0.35)] [&_svg]:w-[18px] [&_svg]:h-[18px] [&_svg]:text-[#D9D2C7]"
         >
           {React.isValidElement(icon) ? icon : typeof icon === 'function' ? React.createElement(icon, { className: 'w-5 h-5' }) : null}
         </div>
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <h3 className="text-lg sm:text-[19px] font-semibold text-[#171717] tracking-tight leading-snug">
+          <h3 className="text-[17px] sm:text-[18px] font-semibold text-[#171717] tracking-tight leading-snug">
             {title}
           </h3>
           {badge}
@@ -276,14 +276,14 @@ export const ModalBody: React.FC<{
   children: React.ReactNode;
   className?: string;
 }> = ({ children, className = '' }) => (
-  <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6 select-text ${className}`}>{children}</div>
+  <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-7 py-6 select-text ${className}`}>{children}</div>
 );
 
 export const ModalFooter: React.FC<{
   children: React.ReactNode;
   className?: string;
 }> = ({ children, className = '' }) => (
-  <div className={`px-6 sm:px-8 py-4 bg-[#FAF9F7] border-t border-[#E7E4DE] flex items-center justify-end gap-3 shrink-0 ${className}`}>
+  <div className={`px-6 sm:px-7 py-3.5 bg-[#FAF9F7] border-t border-[#EFECE7] flex items-center justify-end gap-2.5 shrink-0 ${className}`}>
     {children}
   </div>
 );

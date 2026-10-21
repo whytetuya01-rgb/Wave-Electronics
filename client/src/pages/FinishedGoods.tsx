@@ -18,6 +18,7 @@ import {
   Receipt,
   FileSpreadsheet,
 } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
 
 interface FinishedGoodsItem {
   _id: string;
@@ -176,42 +177,26 @@ export const FinishedGoods: React.FC = () => {
 
   return (
     <div className="space-y-6 w-full">
-      {/* Top Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="page-title">Finished Goods Inventory</h1>
-            <span className="badge-status badge-status-gold text-[11px] font-mono">
-              Module 10
-            </span>
-          </div>
-          <p className="body-text text-[#6B6863] mt-1 max-w-2xl">
-            Usable assembled circuit stock on hand, historical job receipts, and inventory audit ledger.
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="btn-secondary !px-3 !py-1.5 text-xs font-medium"
-            title="Refresh finished goods list"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#807365] ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </button>
-          <button
-            onClick={handleExportCSV}
-            disabled={loading || items.length === 0}
-            className="btn-secondary !px-3 !py-1.5 text-xs font-medium"
-          >
-            <Download className="w-3.5 h-3.5 text-[#807365]" />
-            <span>Export CSV</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={Boxes}
+        title="Finished Goods"
+        description="Usable assembled circuit stock on hand, historical job receipts, and inventory audit ledger."
+        actions={
+          <>
+            <button onClick={fetchData} disabled={loading} className="btn-secondary" title="Refresh finished goods list">
+              <RefreshCw className={`w-4 h-4 text-[#807365] ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+            <button onClick={handleExportCSV} disabled={loading || items.length === 0} className="btn-secondary">
+              <Download className="w-4 h-4 text-[#807365]" />
+              <span>Export CSV</span>
+            </button>
+          </>
+        }
+      />
 
       {/* Summary KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Finished Units in Stock"
           value={summary.totalGoodBalance.toLocaleString()}

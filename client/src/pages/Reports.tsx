@@ -33,6 +33,7 @@ import {
   Award,
   PieChart,
 } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
 
 type ReportTab =
   | 'component-stock'
@@ -402,59 +403,40 @@ export const Reports: React.FC = () => {
 
   return (
     <div className="space-y-6 w-full">
-      {/* Top Header & Export */}
-      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="page-title">Reports & Analytics</h1>
-            <span className="badge-status badge-status-gold text-[11px] font-mono">
-              Module 11
-            </span>
-          </div>
-          <p className="body-text text-[#6B6863] mt-1 max-w-2xl">
-            Authoritative inventory valuation, stock movement audit trails, vendor floor balances, and manufacturing job reconciliation.
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={fetchReportData}
-            disabled={loading}
-            className="btn-secondary !px-3 !py-1.5 text-xs font-medium"
-            title="Refresh current report"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#807365] ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </button>
-          <button
-            onClick={handleExportCSV}
-            disabled={loading}
-            className="btn-secondary !px-3 !py-1.5 text-xs font-medium"
-          >
-            <Download className="w-3.5 h-3.5 text-[#807365]" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            onClick={handlePrint}
-            disabled={loading}
-            className="btn-secondary !px-3 !py-1.5 text-xs font-medium"
-          >
-            <Printer className="w-3.5 h-3.5 text-[#807365]" />
-            <span>Print</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        className="no-print"
+        icon={BarChart3}
+        title="Reports & Analytics"
+        description="Inventory valuation, stock movement audit trails, vendor floor balances, and manufacturing job reconciliation."
+        actions={
+          <>
+            <button onClick={fetchReportData} disabled={loading} className="btn-secondary" title="Refresh current report">
+              <RefreshCw className={`w-4 h-4 text-[#807365] ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+            <button onClick={handleExportCSV} disabled={loading} className="btn-secondary">
+              <Download className="w-4 h-4 text-[#807365]" />
+              <span>Export CSV</span>
+            </button>
+            <button onClick={handlePrint} disabled={loading} className="btn-secondary">
+              <Printer className="w-4 h-4 text-[#807365]" />
+              <span>Print</span>
+            </button>
+          </>
+        }
+      />
 
       {/* Linear & Attio Inspired Segmented Report Tabs Bar */}
       <div className="no-print enterprise-card p-1.5 flex flex-wrap items-center gap-1.5 bg-[#FAF9F7] border border-[#E6E3DE]">
         {[
-          { id: 'component-stock', label: '1. Component Stock', icon: Cpu },
-          { id: 'low-stock', label: '2. Low Stock Alerts', icon: AlertTriangle },
-          { id: 'stock-ledger', label: '3. Movement Ledger', icon: History },
-          { id: 'material-with-vendors', label: '4. With Vendors', icon: Truck },
-          { id: 'pending-jobs', label: '5. Pending Receipts', icon: Clock },
-          { id: 'job-reconciliation', label: '6. Job Reconciliation', icon: Workflow },
-          { id: 'vendor-performance', label: '7. Vendor Performance', icon: Award },
-          { id: 'job-consumption', label: '8. Job Consumption', icon: PieChart },
+          { id: 'component-stock', label: 'Component Stock', icon: Cpu },
+          { id: 'low-stock', label: 'Low Stock Alerts', icon: AlertTriangle },
+          { id: 'stock-ledger', label: 'Movement Ledger', icon: History },
+          { id: 'material-with-vendors', label: 'With Vendors', icon: Truck },
+          { id: 'pending-jobs', label: 'Pending Receipts', icon: Clock },
+          { id: 'job-reconciliation', label: 'Job Reconciliation', icon: Workflow },
+          { id: 'vendor-performance', label: 'Vendor Performance', icon: Award },
+          { id: 'job-consumption', label: 'Job Consumption', icon: PieChart },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -481,7 +463,7 @@ export const Reports: React.FC = () => {
 
       {/* Tab-Specific Summary Cards */}
       {activeTab === 'component-stock' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
             title="Total Inventory Valuation"
             value={`₹${(componentStockData.summary?.totalInventoryValuation || 0).toLocaleString('en-IN')}`}
@@ -532,7 +514,7 @@ export const Reports: React.FC = () => {
       )}
 
       {activeTab === 'low-stock' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
             title="Low Stock Components"
             value={lowStockData.summary?.totalLowStockItems || 0}
@@ -577,7 +559,7 @@ export const Reports: React.FC = () => {
       )}
 
       {activeTab === 'stock-ledger' && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           <StatCard
             title="Logged Transactions"
             value={ledgerData.summary?.totalTransactions || 0}
@@ -615,7 +597,7 @@ export const Reports: React.FC = () => {
       )}
 
       {activeTab === 'material-with-vendors' && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           <StatCard
             title="Component Items with Vendors"
             value={vendorMaterialData.summary?.totalComponentsWithVendors || 0}
@@ -650,7 +632,7 @@ export const Reports: React.FC = () => {
       )}
 
       {activeTab === 'pending-jobs' && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
             title="Active Manufacturing Jobs"
             value={pendingJobsData.summary?.totalPendingJobs || 0}
@@ -702,7 +684,7 @@ export const Reports: React.FC = () => {
       )}
 
       {activeTab === 'job-reconciliation' && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
             title="Total Audited Jobs"
             value={reconciliationData.summary?.totalJobs || 0}
@@ -864,8 +846,7 @@ export const Reports: React.FC = () => {
               <thead>
                 <tr>
                   <th className="th-enterprise">Part Code</th>
-                  <th className="th-enterprise">Component Name</th>
-                  <th className="th-enterprise">Category</th>
+                  <th className="th-enterprise">Component / Category</th>
                   <th className="th-enterprise text-right">In Store</th>
                   <th className="th-enterprise text-right">Reserved</th>
                   <th className="th-enterprise text-right">Available</th>
@@ -877,10 +858,10 @@ export const Reports: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-[#E6E3DE]">
                 {loading ? (
-                  <TableSkeleton rows={6} cols={10} />
+                  <TableSkeleton rows={6} cols={9} />
                 ) : componentStockData.data.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-12">
+                    <td colSpan={9} className="py-12">
                       <EmptyState
                         icon={Cpu}
                         title="No components found"
@@ -891,18 +872,14 @@ export const Reports: React.FC = () => {
                 ) : (
                   componentStockData.data.map((c) => (
                     <tr key={c._id} className="tr-enterprise group">
-                      <td className="td-enterprise font-mono font-bold text-[#171717]">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#FAF9F7] text-[#171717] border border-[#E6E3DE]">
-                          {c.partCode}
-                        </span>
+                      <td className="td-enterprise font-mono font-bold text-[#171717]">{c.partCode}</td>
+                      <td className="td-enterprise whitespace-normal min-w-[200px] max-w-[260px]">
+                        <div className="font-medium text-[#171717] leading-snug">{c.name}</div>
+                        <div className="mt-0.5 text-[11.5px] text-[#716B64]">
+                          {c.category}
+                          {c.package && c.package !== '-' && <span className="font-mono text-[#8A847C]"> · {c.package}</span>}
+                        </div>
                       </td>
-                      <td className="td-enterprise">
-                        <div className="font-medium text-[#171717]">{c.name}</div>
-                        {c.package && c.package !== '-' && (
-                          <div className="text-[11px] text-[#716B64]">{c.package}</div>
-                        )}
-                      </td>
-                      <td className="td-enterprise text-[#716B64]">{c.category}</td>
                       <td className="td-enterprise text-right font-medium text-[#171717]">
                         {c.inStoreStock.toLocaleString()}{' '}
                         <span className="text-[10px] text-[#A69B8D]">{c.unit}</span>
@@ -1048,11 +1025,11 @@ export const Reports: React.FC = () => {
                 <tr>
                   <th className="th-enterprise">Timestamp</th>
                   <th className="th-enterprise">Component</th>
-                  <th className="th-enterprise">Transaction Type</th>
+                  <th className="th-enterprise">Type</th>
                   <th className="th-enterprise">Location</th>
-                  <th className="th-enterprise text-right">Quantity Change</th>
+                  <th className="th-enterprise text-right">Qty Change</th>
                   <th className="th-enterprise text-right">Store Balance</th>
-                  <th className="th-enterprise">Reference / No</th>
+                  <th className="th-enterprise">Reference</th>
                   <th className="th-enterprise">Logged By</th>
                 </tr>
               </thead>
@@ -1072,14 +1049,13 @@ export const Reports: React.FC = () => {
                 ) : (
                   ledgerData.data.map((tx) => (
                     <tr key={tx._id} className="tr-enterprise group">
-                      <td className="td-enterprise text-[#716B64] whitespace-nowrap">
-                        {new Date(tx.createdAt).toLocaleDateString('en-IN', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                      <td className="td-enterprise">
+                        <div className="text-[#171717]">
+                          {new Date(tx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </div>
+                        <div className="text-[11.5px] text-[#8A847C]">
+                          {new Date(tx.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </td>
                       <td className="td-enterprise">
                         <span className="font-mono font-bold text-[#171717]">
@@ -1441,9 +1417,7 @@ export const Reports: React.FC = () => {
       {activeTab === 'job-consumption' && (
         <div className="space-y-4">
           {loading ? (
-            <div className="enterprise-card overflow-hidden">
-              <TableSkeleton rows={5} cols={5} />
-            </div>
+            <TableSkeleton rows={5} headers={['Circuit', 'Consumed Qty', 'Component', 'Qty/Unit', 'Total Consumed']} />
           ) : jobConsumptionData.data.length === 0 ? (
             <div className="enterprise-card py-12">
               <EmptyState
@@ -1566,9 +1540,10 @@ export const Reports: React.FC = () => {
         size="2xl"
       >
         {jobRecLoading ? (
-          <div className="py-12">
-            <TableSkeleton rows={5} cols={8} />
-          </div>
+          <TableSkeleton
+            rows={5}
+            headers={['Part Code', 'Planned', 'Issued', 'Consumed', 'Returned', 'Damaged', 'With Vendor', 'Variance']}
+          />
         ) : !singleJobRec ? (
           <div className="py-8 text-center text-xs text-[#716B64]">
             Unable to compute reconciliation for this job.

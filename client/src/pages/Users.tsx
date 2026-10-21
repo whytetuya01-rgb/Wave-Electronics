@@ -11,6 +11,7 @@ import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 import { FormField } from '../components/ui/FormField';
 import { ValidatedInput } from '../components/ui/ValidatedInput';
 import { SimpleSelect } from '../components/ui/Select';
+import { PageHeader } from '../components/ui/PageHeader';
 import { toast } from '../utils/toast';
 import { handleApiError } from '../utils/apiErrors';
 import {
@@ -204,23 +205,19 @@ export const Users: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Users &amp; Roles</h1>
-          <p className="body-text text-[#6B6863] mt-1 max-w-2xl">
-            Manage staff accounts and their access level across the workspace.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
+      <PageHeader
+        icon={UsersIcon}
+        title="Users & Roles"
+        description="Manage staff accounts and their access level across the workspace."
+        actions={
           <button onClick={handleOpenAdd} className="btn-primary">
             <Plus className="w-4 h-4" />
             <span>Add User</span>
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <StatCard title="Total Users" value={totalUsers} icon={UsersIcon} subtitle="Registered accounts" loading={loading} />
         <StatCard
           title="Active Accounts"
@@ -412,7 +409,7 @@ export const Users: React.FC = () => {
             <button type="button" onClick={() => setShowAddModal(false)} className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" form="add-user-form" disabled={isSaving} className="btn-primary">
+            <button type="submit" disabled={isSaving} className="btn-primary">
               {isSaving ? <ButtonSpinner /> : <Plus className="w-4 h-4" />}
               <span>Create User</span>
             </button>
@@ -424,7 +421,7 @@ export const Users: React.FC = () => {
             {formError}
           </div>
         )}
-        <form id="add-user-form" onSubmit={form.handleSubmit(handleCreateUser)} className="space-y-4">
+        <div className="space-y-4">
           <FormField label="Full Name" required error={form.formState.errors.name?.message} id="user-name">
             <ValidatedInput id="user-name" placeholder="e.g. Priya Sharma" {...form.register('name')} />
           </FormField>
@@ -458,7 +455,7 @@ export const Users: React.FC = () => {
               hasError={Boolean(form.formState.errors.role)}
             />
           </FormField>
-        </form>
+        </div>
       </Modal>
 
       {/* RESET PASSWORD DIALOG */}
@@ -474,18 +471,14 @@ export const Users: React.FC = () => {
             <button type="button" onClick={() => setResetPasswordUser(null)} className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" form="reset-password-form" disabled={isSaving} className="btn-primary">
+            <button type="submit" disabled={isSaving} className="btn-primary">
               {isSaving ? <ButtonSpinner /> : <KeyRound className="w-4 h-4" />}
               <span>Reset Password</span>
             </button>
           </>
         }
       >
-        <form
-          id="reset-password-form"
-          onSubmit={resetPasswordForm.handleSubmit(handleResetPassword)}
-          className="space-y-4"
-        >
+        <div className="space-y-4">
           <FormField
             label="New Password"
             required
@@ -499,7 +492,7 @@ export const Users: React.FC = () => {
               {...resetPasswordForm.register('password')}
             />
           </FormField>
-        </form>
+        </div>
       </Modal>
 
       {/* TOGGLE STATUS CONFIRM */}

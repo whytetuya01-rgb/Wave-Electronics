@@ -29,6 +29,7 @@ import {
   Wallet,
   Layers,
 } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
 
 interface BomItem {
   componentId: string;
@@ -356,24 +357,22 @@ export const Circuits: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Circuits (Recipes / BOM)</h1>
-          <p className="body-text text-slate-500 mt-1 max-w-2xl">
-            Bills of material for each circuit, with live material cost and maximum buildable quantity from current stock.
-          </p>
-        </div>
-        {canEdit && (
-          <button onClick={handleOpenAdd} className="btn-primary">
-            <Plus className="w-4 h-4" />
-            <span>Add Circuit</span>
-          </button>
-        )}
-      </div>
+      <PageHeader
+        icon={FileSpreadsheet}
+        title="Circuit BOM Recipes"
+        description="Bills of material for each circuit, with live material cost and maximum buildable quantity from current stock."
+        actions={
+          canEdit && (
+            <button onClick={handleOpenAdd} className="btn-primary">
+              <Plus className="w-4 h-4" />
+              <span>Add Circuit</span>
+            </button>
+          )
+        }
+      />
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard title="Total Circuits" value={totalCircuits} icon={FileSpreadsheet} subtitle="All versions on record" loading={loading} />
         <StatCard
           title="Active Circuits"
@@ -664,7 +663,7 @@ export const Circuits: React.FC = () => {
                   <FormError message={fieldErrors['bomItems']} className="mt-1" />
                 )}
               </div>
-              <button type="button" onClick={addBomRow} className="btn-secondary text-xs py-1">
+              <button type="button" onClick={addBomRow} className="btn-secondary btn-sm">
                 <Plus className="w-3.5 h-3.5" /> Add Row
               </button>
             </div>

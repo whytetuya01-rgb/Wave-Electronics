@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { EmptyState } from '../components/ui/EmptyState';
 import { TableSkeleton } from '../components/ui/Loading';
 import { SimpleSelect } from '../components/ui/Select';
+import { PageHeader } from '../components/ui/PageHeader';
 import { toast } from '../utils/toast';
 import { History, Calendar, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -68,13 +69,11 @@ export const ActivityLogs: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Activity Log</h1>
-        <p className="body-text text-[#6B6863] mt-1 max-w-2xl">
-          Audit trail of who performed what action, when. Covers job approval, material issue,
-          finished circuit receipt, job closing, stock adjustments and stock inward.
-        </p>
-      </div>
+      <PageHeader
+        icon={History}
+        title="Activity Log"
+        description="Audit trail of who performed what action, and when — job approval, material issue, finished circuit receipt, job closing, stock adjustments and stock inward."
+      />
 
       <div className="enterprise-card p-3 flex flex-col sm:flex-row items-center gap-3">
         <div className="w-full sm:w-56">

@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { FolderTree, Ruler, MapPin, Plus, Trash2, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
 import { ConfirmModal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
 import { FormField } from '../components/ui/FormField';
@@ -187,13 +188,12 @@ export const Masters: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 w-full">
-      <div className="pb-2 border-b border-[#E6E3DE]">
-        <h1 className="text-xl font-bold text-[#171717] tracking-tight">Master Data Management</h1>
-        <p className="text-xs text-[#6B6863] mt-0.5">
-          Component categories, units of measurement, and physical warehouse bin locations.
-        </p>
-      </div>
+    <div className="space-y-6 w-full">
+      <PageHeader
+        icon={FolderTree}
+        title="Master Data"
+        description="Component categories, units of measurement, and physical warehouse bin locations."
+      />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-[#E6E3DE]">

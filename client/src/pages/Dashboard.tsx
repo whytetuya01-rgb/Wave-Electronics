@@ -20,7 +20,9 @@ import {
   Package,
   History,
   CalendarClock,
+  LayoutDashboard,
 } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
 
 export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -128,33 +130,30 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
-        <div>
-          <h1 className="page-title">Executive Dashboard</h1>
-          <p className="body-text text-[#6B6863] mt-1">
-            Operational component stock balances, inventory valuation, and warehouse status.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Link to="/stock-inward" className="btn-secondary">
-            <PackageCheck className="w-4 h-4 text-[#807365]" />
-            <span>Stock Inward (GIN)</span>
-          </Link>
-          <Link to="/vendors" className="btn-secondary">
-            <Truck className="w-4 h-4 text-[#807365]" />
-            <span>Assemblers</span>
-          </Link>
-          <Link to="/components?action=new" className="btn-primary">
-            <Plus className="w-4 h-4" />
-            <span>Add Component</span>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        icon={LayoutDashboard}
+        title="Executive Dashboard"
+        description="Operational component stock balances, inventory valuation, and warehouse status."
+        actions={
+          <>
+            <Link to="/stock-inward" className="btn-secondary">
+              <PackageCheck className="w-4 h-4 text-[#807365]" />
+              <span>Stock Inward</span>
+            </Link>
+            <Link to="/vendors" className="btn-secondary">
+              <Truck className="w-4 h-4 text-[#807365]" />
+              <span>Assemblers</span>
+            </Link>
+            <Link to="/components?action=new" className="btn-primary">
+              <Plus className="w-4 h-4" />
+              <span>Add Component</span>
+            </Link>
+          </>
+        }
+      />
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Total Catalog Items"
           value={stats.totalComponents}
@@ -205,8 +204,8 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Job & Vendor Monitoring KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link to="/jobs" className="block">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Link to="/jobs" className="block h-full">
           <StatCard
             title="Open Jobs"
             value={jobStats.openJobsCount}
@@ -217,7 +216,7 @@ export const Dashboard: React.FC = () => {
             loading={loading}
           />
         </Link>
-        <Link to="/reports" className="block">
+        <Link to="/reports" className="block h-full">
           <StatCard
             title="Material With Vendors"
             value={`${vendorStats.totalUnitsWithVendors.toLocaleString()} pcs`}
@@ -228,7 +227,7 @@ export const Dashboard: React.FC = () => {
             loading={loading}
           />
         </Link>
-        <Link to="/reports" className="block">
+        <Link to="/reports" className="block h-full">
           <StatCard
             title="Pending Finished Receipts"
             value={pendingSummary.totalPendingJobs}

@@ -170,7 +170,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             <button
               type="button"
               onClick={onAddCircuitRow}
-              className="btn-secondary px-2.5 py-1 text-xs"
+              className="btn-secondary btn-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Circuit</span>

@@ -160,7 +160,7 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
                         <button
                           onClick={() => onDownloadChallanPdf(ch)}
                           disabled={downloadingPdfKey === `challan-${ch._id}`}
-                          className="btn-secondary px-2 py-0.5 text-xs"
+                          className="btn-secondary btn-sm"
                           title="Download Delivery Challan PDF"
                         >
                           {downloadingPdfKey === `challan-${ch._id}` ? <ButtonSpinner /> : <FileDown className="w-3.5 h-3.5" />}
@@ -169,7 +169,7 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
                         {isStoreKeeper && ch.status !== 'received' && (
                           <button
                             onClick={() => onOpenReceiveModal(ch)}
-                            className="btn-secondary px-2 py-0.5 text-xs text-[#168060] hover:bg-[#168060]/10"
+                            className="btn-secondary btn-sm !text-[#168060] hover:!bg-[#168060]/10 !border-[#168060]/30"
                           >
                             Receive Unused / Damaged
                           </button>
@@ -212,7 +212,7 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
                         <button
                           onClick={() => onDownloadJobReceiptPdf(detailedJob._id, rc)}
                           disabled={downloadingPdfKey === `receipt-${rc._id}`}
-                          className="btn-secondary px-2 py-0.5 text-xs"
+                          className="btn-secondary btn-sm"
                           title="Download Job Receipt PDF"
                         >
                           {downloadingPdfKey === `receipt-${rc._id}` ? <ButtonSpinner /> : <FileDown className="w-3.5 h-3.5" />}

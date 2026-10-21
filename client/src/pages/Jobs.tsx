@@ -47,6 +47,7 @@ import {
   PackageCheck,
   ClipboardCheck,
 } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
 
 export const Jobs: React.FC = () => {
   const { isAdmin, isProduction, isStoreKeeper } = useAuth();
@@ -798,24 +799,22 @@ export const Jobs: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Jobs & Delivery Challan</h1>
-          <p className="body-text text-slate-500 mt-1 max-w-2xl">
-            Job-work orders sent to assembly vendors, with material requirements calculated from circuit BOMs.
-          </p>
-        </div>
-        {canEdit && (
-          <button onClick={handleOpenAddModal} className="btn-primary">
-            <Plus className="w-4 h-4" />
-            <span>Create Job</span>
-          </button>
-        )}
-      </div>
+      <PageHeader
+        icon={Workflow}
+        title="Jobs & Delivery Challans"
+        description="Job-work orders sent to assembly vendors, with material requirements calculated from circuit BOMs."
+        actions={
+          canEdit && (
+            <button onClick={handleOpenAddModal} className="btn-primary">
+              <Plus className="w-4 h-4" />
+              <span>Create Job</span>
+            </button>
+          )
+        }
+      />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Total Jobs"
           value={totalJobs}
@@ -968,7 +967,7 @@ export const Jobs: React.FC = () => {
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleOpenDetails(job)}
-                          className="btn-secondary px-2 py-1 text-xs"
+                          className="btn-secondary btn-sm"
                           title="View Details & BOM Material Requirements"
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -979,7 +978,7 @@ export const Jobs: React.FC = () => {
                           <>
                             <button
                               onClick={() => handleOpenEditModal(job)}
-                              className="btn-secondary px-2 py-1 text-xs"
+                              className="btn-secondary btn-sm"
                               title="Edit Job Draft"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
@@ -988,7 +987,7 @@ export const Jobs: React.FC = () => {
                             <button
                               onClick={() => handleApprove(job)}
                               disabled={actionLoading && actionJobId === job._id}
-                              className="btn-primary px-2.5 py-1 text-xs bg-[#168060] hover:bg-[#12684e] text-white"
+                              className="btn-primary btn-sm !bg-[#168060] hover:!bg-[#12684e] !border-[#168060]"
                               title="Approve Job & Reserve Stock"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1000,7 +999,7 @@ export const Jobs: React.FC = () => {
                         {isStoreKeeper && (job.status === 'approved' || job.status === 'material_issued' || job.status === 'partially_received') && (
                           <button
                             onClick={() => handleOpenIssueModal(job)}
-                            className="btn-primary px-2 py-1 text-xs"
+                            className="btn-primary btn-sm"
                             title="Issue Reserved Materials & Generate Delivery Challan"
                           >
                             <PackageCheck className="w-3.5 h-3.5" />
@@ -1011,7 +1010,7 @@ export const Jobs: React.FC = () => {
                         {isStoreKeeper && (job.status === 'material_issued' || job.status === 'partially_received') && (
                           <button
                             onClick={() => handleOpenJobReceiveModal(job)}
-                            className="btn-primary px-2 py-1 text-xs bg-[#168060] hover:bg-[#12684e]"
+                            className="btn-primary btn-sm !bg-[#168060] hover:!bg-[#12684e] !border-[#168060]"
                             title="Receive Finished Circuits & Component Returns Together"
                           >
                             <ClipboardCheck className="w-3.5 h-3.5" />
@@ -1023,7 +1022,7 @@ export const Jobs: React.FC = () => {
                           <button
                             onClick={() => handleCancel(job)}
                             disabled={actionLoading && actionJobId === job._id}
-                            className="btn-secondary px-2 py-1 text-xs text-[#C2413A] hover:bg-[#C2413A]/10 border-[#C2413A]/30"
+                            className="btn-secondary btn-sm !text-[#C2413A] hover:!bg-[#C2413A]/10 !border-[#C2413A]/30"
                             title="Cancel Job"
                           >
                             <Ban className="w-3.5 h-3.5" />

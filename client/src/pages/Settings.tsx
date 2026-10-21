@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { FormField } from '../components/ui/FormField';
 import { ValidatedInput } from '../components/ui/ValidatedInput';
 import { ButtonSpinner } from '../components/ui/Loading';
+import { PageHeader } from '../components/ui/PageHeader';
 import { toast } from '../utils/toast';
 import { handleApiError } from '../utils/apiErrors';
 import { Settings as SettingsIcon, Building2, MapPin, Phone, Mail, FileText, Image, Save } from 'lucide-react';
@@ -71,12 +72,11 @@ export const Settings: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="page-title">Settings</h1>
-        <p className="body-text text-[#6B6863] mt-1">
-          Company identity used on generated PDFs (delivery challans and job receipts).
-        </p>
-      </div>
+      <PageHeader
+        icon={SettingsIcon}
+        title="Settings"
+        description="Company identity used on generated PDFs (delivery challans and job receipts)."
+      />
 
       {formError && (
         <div className="p-3 rounded-[10px] bg-[#C2413A]/10 border border-[#C2413A]/30 text-[#C2413A] text-xs font-medium">

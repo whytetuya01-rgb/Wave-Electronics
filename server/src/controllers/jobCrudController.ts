@@ -209,6 +209,40 @@ export async function attachLiveAvailability(materialRequirement: IJobMaterialRe
   });
 }
 
+// Dashboard support endpoint: counts of jobs per status, plus how many of
+// those are overdue against targetDate. Deliberately just a count
+// aggregation over the existing Job collection - no business/reservation
+// logic is recomputed here, so it cannot drift from the real stock-reserving
+// code paths in jobApprovalController/jobIssueController.
+export const getJobStatusSummary = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const [statusCounts, overdueOpenJobs] = await Promise.all([
+      Job.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+      Job.countDocuments({
+        status: { $in: ['approved', 'material_issued', 'partially_received'] },
+        targetDate: { $lt: new Date() },
+      }),
+    ]);
+
+    const counts: Record<string, number> = {};
+    statusCounts.forEach((row: any) => {
+      counts[row._id] = row.count;
+    });
+
+    const openStatuses = ['draft', 'approved', 'material_issued', 'partially_received'];
+    const openJobsCount = openStatuses.reduce((sum, s) => sum + (counts[s] || 0), 0);
+
+    res.json({
+      byStatus: counts,
+      openJobsCount,
+      draftJobsCount: counts.draft || 0,
+      overdueOpenJobs,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error fetching job status summary' });
+  }
+};
+
 export const getJobs = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { search, status, vendorId, page = 1, limit = 25 } = req.query;

@@ -1,5 +1,15 @@
 import { Router } from 'express';
-import { getJobs, getJobById, createJob, updateJob, approveJob, issueMaterial, cancelJob, closeJob } from '../controllers/jobController.js';
+import {
+  getJobs,
+  getJobById,
+  createJob,
+  updateJob,
+  approveJob,
+  issueMaterial,
+  cancelJob,
+  closeJob,
+  getJobStatusSummary,
+} from '../controllers/jobController.js';
 import { receiveJobMaterial, getJobReceiptsByJob, getJobReconciliation } from '../controllers/jobReceiptController.js';
 import { getJobReceiptPdf } from '../controllers/pdfController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
@@ -9,6 +19,7 @@ import { jobIdParamSchema, materialIssueBodySchema, jobReceiptBodySchema } from 
 const router = Router();
 
 router.get('/', authenticate, getJobs);
+router.get('/stats/summary', authenticate, getJobStatusSummary);
 router.get('/:id', authenticate, getJobById);
 router.get('/:id/reconciliation', authenticate, getJobReconciliation);
 router.get('/:id/receipts', authenticate, getJobReceiptsByJob);

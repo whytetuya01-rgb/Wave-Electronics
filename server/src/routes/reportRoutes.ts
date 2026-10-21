@@ -7,6 +7,8 @@ import {
   getPendingJobReceiptsReport,
   getJobReconciliationReport,
   getSingleJobReconciliation,
+  getVendorPerformanceReport,
+  getJobConsumptionReport,
 } from '../controllers/reportController.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -19,5 +21,7 @@ router.get('/material-with-vendors', authenticate, getMaterialWithVendorsReport)
 router.get('/pending-jobs', authenticate, getPendingJobReceiptsReport);
 router.get('/job-reconciliation', authenticate, getJobReconciliationReport);
 router.get('/job-reconciliation/:id', authenticate, getSingleJobReconciliation);
+router.get('/vendor-performance', authenticate, getVendorPerformanceReport);
+router.get('/job-consumption', authenticate, getJobConsumptionReport);
 
 export default router;

@@ -431,3 +431,19 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Report printing: AppLayout wraps everything the user sees in the sidebar
+   + topbar shell, which has no place on a printed page. Pages that offer a
+   Print button mark the sidebar/toolbar chrome with .no-print and the
+   actual report content with .print-area so only the data prints. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-area {
+    display: block !important;
+  }
+  body {
+    background: #FFFFFF !important;
+  }
+}

@@ -29,6 +29,9 @@ import {
   Filter,
   DollarSign,
   Info,
+  Printer,
+  Award,
+  PieChart,
 } from 'lucide-react';
 
 type ReportTab =
@@ -37,7 +40,9 @@ type ReportTab =
   | 'stock-ledger'
   | 'material-with-vendors'
   | 'pending-jobs'
-  | 'job-reconciliation';
+  | 'job-reconciliation'
+  | 'vendor-performance'
+  | 'job-consumption';
 
 export const Reports: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ReportTab>('component-stock');
@@ -84,6 +89,14 @@ export const Reports: React.FC = () => {
     summary: {},
   });
   const [reconciliationData, setReconciliationData] = useState<{ data: any[]; summary: any }>({
+    data: [],
+    summary: {},
+  });
+  const [vendorPerformanceData, setVendorPerformanceData] = useState<{ data: any[]; summary: any }>({
+    data: [],
+    summary: {},
+  });
+  const [jobConsumptionData, setJobConsumptionData] = useState<{ data: any[]; summary: any }>({
     data: [],
     summary: {},
   });
@@ -166,6 +179,17 @@ export const Reports: React.FC = () => {
         if (statusFilter !== 'all') params.status = statusFilter;
         const res = await api.get('/reports/job-reconciliation', { params });
         setReconciliationData(res.data);
+      } else if (activeTab === 'vendor-performance') {
+        const params: Record<string, string> = {};
+        if (vendorFilter !== 'all') params.vendorId = vendorFilter;
+        const res = await api.get('/reports/vendor-performance', { params });
+        setVendorPerformanceData(res.data);
+      } else if (activeTab === 'job-consumption') {
+        const params: Record<string, string> = {};
+        if (search.trim()) params.search = search.trim();
+        if (vendorFilter !== 'all') params.vendorId = vendorFilter;
+        const res = await api.get('/reports/job-consumption', { params });
+        setJobConsumptionData(res.data);
       }
     } catch (err: any) {
       console.error('Error fetching report:', err);
@@ -323,6 +347,36 @@ export const Reports: React.FC = () => {
         j.hasCloseSnapshot ? 'YES' : 'NO',
         new Date(j.createdAt).toLocaleDateString(),
       ]);
+    } else if (activeTab === 'vendor-performance') {
+      headers = ['Vendor', 'Jobs Completed', 'On-Time %', 'Late Jobs', 'Total Good Qty', 'Total Rejected Qty', 'Rejection %'];
+      rows = (vendorPerformanceData.data || []).map((v) => [
+        `"${v.vendorName}"`,
+        v.jobsCompleted,
+        `${v.onTimePercent}%`,
+        v.lateCount,
+        v.totalGoodQty,
+        v.totalRejectedQty,
+        `${v.rejectionPercent}%`,
+      ]);
+    } else if (activeTab === 'job-consumption') {
+      headers = ['Job Number', 'Vendor', 'Circuit', 'Ordered Qty', 'Consumed (Good) Qty', 'Component', 'Qty/Unit', 'Total Consumed'];
+      rows = [];
+      (jobConsumptionData.data || []).forEach((j) => {
+        j.circuits.forEach((c: any) => {
+          c.components.forEach((comp: any) => {
+            rows.push([
+              j.jobNumber,
+              `"${j.vendorName}"`,
+              `"${c.circuitName}"`,
+              c.orderedQty,
+              c.consumedQty,
+              `"${comp.name}"`,
+              comp.qtyPerUnit,
+              comp.totalConsumed,
+            ]);
+          });
+        });
+      });
     }
 
     if (rows.length === 0) {
@@ -342,10 +396,14 @@ export const Reports: React.FC = () => {
     toast.success('Report exported to CSV successfully');
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-6 w-full">
       {/* Top Header & Export */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="page-title">Reports & Analytics</h1>
@@ -375,11 +433,19 @@ export const Reports: React.FC = () => {
             <Download className="w-3.5 h-3.5 text-[#807365]" />
             <span>Export CSV</span>
           </button>
+          <button
+            onClick={handlePrint}
+            disabled={loading}
+            className="btn-secondary !px-3 !py-1.5 text-xs font-medium"
+          >
+            <Printer className="w-3.5 h-3.5 text-[#807365]" />
+            <span>Print</span>
+          </button>
         </div>
       </div>
 
       {/* Linear & Attio Inspired Segmented Report Tabs Bar */}
-      <div className="enterprise-card p-1.5 flex flex-wrap items-center gap-1.5 bg-[#FAF9F7] border border-[#E6E3DE]">
+      <div className="no-print enterprise-card p-1.5 flex flex-wrap items-center gap-1.5 bg-[#FAF9F7] border border-[#E6E3DE]">
         {[
           { id: 'component-stock', label: '1. Component Stock', icon: Cpu },
           { id: 'low-stock', label: '2. Low Stock Alerts', icon: AlertTriangle },
@@ -387,6 +453,8 @@ export const Reports: React.FC = () => {
           { id: 'material-with-vendors', label: '4. With Vendors', icon: Truck },
           { id: 'pending-jobs', label: '5. Pending Receipts', icon: Clock },
           { id: 'job-reconciliation', label: '6. Job Reconciliation', icon: Workflow },
+          { id: 'vendor-performance', label: '7. Vendor Performance', icon: Award },
+          { id: 'job-consumption', label: '8. Job Consumption', icon: PieChart },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -679,7 +747,7 @@ export const Reports: React.FC = () => {
       )}
 
       {/* Advanced Toolbar / Search & Filter Bar */}
-      <div className="enterprise-card p-3 flex flex-col md:flex-row items-center justify-between gap-3">
+      <div className="no-print enterprise-card p-3 flex flex-col md:flex-row items-center justify-between gap-3">
         <form onSubmit={handleSearchSubmit} className="relative flex-1 w-full">
           <Search className="w-4 h-4 text-[#807365] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -1309,8 +1377,140 @@ export const Reports: React.FC = () => {
         </div>
       )}
 
+      {/* 7. Vendor Performance Report Table */}
+      {activeTab === 'vendor-performance' && (
+        <div className="enterprise-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr>
+                  <th className="th-enterprise">Vendor</th>
+                  <th className="th-enterprise text-right">Jobs Completed</th>
+                  <th className="th-enterprise text-right">On-Time %</th>
+                  <th className="th-enterprise text-right">Late Jobs</th>
+                  <th className="th-enterprise text-right">Good Qty</th>
+                  <th className="th-enterprise text-right">Rejected Qty</th>
+                  <th className="th-enterprise text-right">Rejection %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E6E3DE]">
+                {loading ? (
+                  <TableSkeleton rows={5} cols={7} />
+                ) : vendorPerformanceData.data.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12">
+                      <EmptyState
+                        icon={Award}
+                        title="No closed jobs to rate yet"
+                        description="Vendor performance is calculated from closed jobs and their finished-circuit receipts."
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  vendorPerformanceData.data.map((v) => (
+                    <tr key={v.vendorId} className="tr-enterprise group">
+                      <td className="td-enterprise font-medium text-[#171717]">{v.vendorName}</td>
+                      <td className="td-enterprise text-right font-mono font-bold text-[#171717]">{v.jobsCompleted}</td>
+                      <td className="td-enterprise text-right">
+                        <span
+                          className={`font-semibold ${v.onTimePercent >= 80 ? 'text-[#168060]' : v.onTimePercent >= 50 ? 'text-[#B7791F]' : 'text-[#C2413A]'}`}
+                        >
+                          {v.onTimePercent}%
+                        </span>
+                      </td>
+                      <td className="td-enterprise text-right text-[#716B64]">{v.lateCount}</td>
+                      <td className="td-enterprise text-right font-mono text-[#168060]">{v.totalGoodQty}</td>
+                      <td className="td-enterprise text-right font-mono text-[#C2413A]">{v.totalRejectedQty}</td>
+                      <td className="td-enterprise text-right">
+                        <span
+                          className={`font-semibold ${v.rejectionPercent <= 2 ? 'text-[#168060]' : v.rejectionPercent <= 8 ? 'text-[#B7791F]' : 'text-[#C2413A]'}`}
+                        >
+                          {v.rejectionPercent}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 8. Job Consumption Report Table */}
+      {activeTab === 'job-consumption' && (
+        <div className="space-y-4">
+          {loading ? (
+            <div className="enterprise-card overflow-hidden">
+              <TableSkeleton rows={5} cols={5} />
+            </div>
+          ) : jobConsumptionData.data.length === 0 ? (
+            <div className="enterprise-card py-12">
+              <EmptyState
+                icon={PieChart}
+                title="No material-issued jobs found"
+                description="Component consumption is shown per job and per circuit once material has been issued."
+              />
+            </div>
+          ) : (
+            jobConsumptionData.data.map((j) => (
+              <div key={j._id} className="enterprise-card overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#E6E3DE] bg-[#FAF9F7] flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-[#171717]">
+                    <Workflow className="w-4 h-4 text-[#807365]" />
+                    {j.jobNumber}
+                    <span className="text-xs text-[#6B6863] font-normal">— {j.vendorName}</span>
+                  </div>
+                  <span className="badge-status badge-status-neutral text-[10px]">{j.status.replace('_', ' ')}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr>
+                        <th className="th-enterprise">Circuit</th>
+                        <th className="th-enterprise text-right">Consumed Qty</th>
+                        <th className="th-enterprise">Component</th>
+                        <th className="th-enterprise text-right">Qty/Unit</th>
+                        <th className="th-enterprise text-right">Total Consumed</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E6E3DE]">
+                      {j.circuits.flatMap((c: any) =>
+                        c.components.map((comp: any, idx: number) => (
+                          <tr key={`${c.circuitCode}-${comp.partCode}`} className="tr-enterprise">
+                            {idx === 0 && (
+                              <td className="td-enterprise font-medium text-[#171717]" rowSpan={c.components.length}>
+                                {c.circuitName}
+                                <div className="text-[11px] text-[#6B6863] font-mono">{c.circuitCode}</div>
+                              </td>
+                            )}
+                            {idx === 0 && (
+                              <td className="td-enterprise text-right font-mono font-bold" rowSpan={c.components.length}>
+                                {c.consumedQty}
+                              </td>
+                            )}
+                            <td className="td-enterprise text-[#383531]">
+                              {comp.name}
+                              <div className="text-[11px] text-[#6B6863] font-mono">{comp.partCode}</div>
+                            </td>
+                            <td className="td-enterprise text-right font-mono text-[#716B64]">{comp.qtyPerUnit}</td>
+                            <td className="td-enterprise text-right font-mono font-semibold text-[#171717]">
+                              {comp.totalConsumed}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {/* Advanced Enterprise Reports Roadmap Section */}
-      <div className="enterprise-card p-5 bg-[#FAF9F7]/70 border border-[#E6E3DE]">
+      <div className="no-print enterprise-card p-5 bg-[#FAF9F7]/70 border border-[#E6E3DE]">
         <div className="flex items-start gap-3">
           <Info className="w-5 h-5 text-[#807365] shrink-0 mt-0.5" />
           <div className="space-y-2">

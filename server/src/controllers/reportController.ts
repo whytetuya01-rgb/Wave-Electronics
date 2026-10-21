@@ -4,6 +4,7 @@ import { Component } from '../models/Component.js';
 import { StockTransaction } from '../models/StockTransaction.js';
 import { Job } from '../models/Job.js';
 import { Vendor } from '../models/Vendor.js';
+import { JobReceipt } from '../models/JobReceipt.js';
 import { computeJobReconciliation } from './jobReceiptController.js';
 import { AuthRequest } from '../middleware/auth.js';
 
@@ -573,5 +574,166 @@ export const getSingleJobReconciliation = async (req: AuthRequest, res: Response
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error fetching single job reconciliation' });
+  }
+};
+
+/**
+ * 7. Vendor Performance Report
+ * Per-vendor summary built from existing Job and JobReceipt data: jobs
+ * completed, on-time vs late delivery (closedAt vs. the job's targetDate),
+ * and rejection rate from the same circuitReceipts lines the Job Receipt
+ * screen and PDF already use. No new accounting logic - purely a
+ * cross-vendor aggregation of numbers that already exist elsewhere.
+ */
+export const getVendorPerformanceReport = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { vendorId } = req.query;
+
+    const jobQuery: Record<string, any> = { status: 'closed' };
+    if (vendorId && typeof vendorId === 'string' && mongoose.Types.ObjectId.isValid(vendorId)) {
+      jobQuery.vendorId = vendorId;
+    }
+
+    const closedJobs = await Job.find(jobQuery).populate('vendorId', 'name').lean();
+    const jobIds = closedJobs.map((j) => j._id);
+
+    const receipts = await JobReceipt.find({ jobId: { $in: jobIds } }).lean();
+    const receiptsByJob = new Map<string, any[]>();
+    receipts.forEach((r) => {
+      const key = r.jobId.toString();
+      if (!receiptsByJob.has(key)) receiptsByJob.set(key, []);
+      receiptsByJob.get(key)!.push(r);
+    });
+
+    const vendorMap = new Map<
+      string,
+      {
+        vendorId: string;
+        vendorName: string;
+        jobsCompleted: number;
+        onTimeCount: number;
+        lateCount: number;
+        totalGoodQty: number;
+        totalRejectedQty: number;
+      }
+    >();
+
+    closedJobs.forEach((job) => {
+      const v = job.vendorId as any;
+      if (!v) return;
+      const vId = v._id.toString();
+      if (!vendorMap.has(vId)) {
+        vendorMap.set(vId, {
+          vendorId: vId,
+          vendorName: v.name,
+          jobsCompleted: 0,
+          onTimeCount: 0,
+          lateCount: 0,
+          totalGoodQty: 0,
+          totalRejectedQty: 0,
+        });
+      }
+      const entry = vendorMap.get(vId)!;
+      entry.jobsCompleted += 1;
+
+      const targetDate = (job as any).targetDate ? new Date((job as any).targetDate) : null;
+      const closedAt = (job as any).closedAt ? new Date((job as any).closedAt) : null;
+      if (targetDate && closedAt) {
+        if (closedAt <= targetDate) {
+          entry.onTimeCount += 1;
+        } else {
+          entry.lateCount += 1;
+        }
+      }
+
+      const jobReceipts = receiptsByJob.get(job._id.toString()) || [];
+      jobReceipts.forEach((r: any) => {
+        (r.circuitReceipts || []).forEach((cr: any) => {
+          entry.totalGoodQty += cr.goodQty || 0;
+          entry.totalRejectedQty += cr.rejectedQty || 0;
+        });
+      });
+    });
+
+    const data = Array.from(vendorMap.values()).map((v) => {
+      const totalProduced = v.totalGoodQty + v.totalRejectedQty;
+      return {
+        ...v,
+        rejectionPercent: totalProduced > 0 ? Number(((v.totalRejectedQty / totalProduced) * 100).toFixed(2)) : 0,
+        onTimePercent: v.jobsCompleted > 0 ? Number(((v.onTimeCount / v.jobsCompleted) * 100).toFixed(2)) : 0,
+      };
+    });
+
+    data.sort((a, b) => b.jobsCompleted - a.jobsCompleted);
+
+    res.json({
+      data,
+      summary: {
+        totalVendorsRated: data.length,
+        totalJobsClosed: closedJobs.length,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error generating vendor performance report' });
+  }
+};
+
+/**
+ * 8. Job Consumption Report
+ * Components actually consumed per job and per circuit, read from the
+ * immutable bomSnapshot + receivedGoodQty already stored on each job's
+ * jobCircuits - the same historical-BOM source computeJobReconciliation()
+ * uses, so consumption here can never disagree with the reconciliation
+ * numbers for the same job.
+ */
+export const getJobConsumptionReport = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { jobId, vendorId, search } = req.query;
+
+    const query: Record<string, any> = {
+      status: { $in: ['material_issued', 'partially_received', 'closed'] },
+    };
+    if (jobId && typeof jobId === 'string' && mongoose.Types.ObjectId.isValid(jobId)) {
+      query._id = jobId;
+    }
+    if (vendorId && typeof vendorId === 'string' && mongoose.Types.ObjectId.isValid(vendorId)) {
+      query.vendorId = vendorId;
+    }
+    if (search && typeof search === 'string' && search.trim()) {
+      query.jobNumber = new RegExp(search.trim(), 'i');
+    }
+
+    const jobs = await Job.find(query).populate('vendorId', 'name').sort({ updatedAt: -1 }).limit(100).lean();
+
+    const data = jobs.map((job) => {
+      const circuits = (job.jobCircuits || []).map((jc: any) => {
+        const consumedQty = jc.receivedGoodQty || 0;
+        const components = (jc.bomSnapshot || []).map((line: any) => ({
+          partCode: line.partCode,
+          name: line.name,
+          qtyPerUnit: line.qtyPerUnit,
+          totalConsumed: Number((consumedQty * (line.qtyPerUnit || 0)).toFixed(4)),
+        }));
+        return {
+          circuitCode: jc.circuitCode,
+          circuitName: jc.circuitName,
+          orderedQty: jc.orderedQty,
+          consumedQty,
+          components,
+        };
+      });
+
+      return {
+        _id: job._id,
+        jobNumber: job.jobNumber,
+        vendorName: (job.vendorId as any)?.name || '-',
+        status: job.status,
+        circuits,
+      };
+    });
+
+    res.json({ data, summary: { totalJobs: data.length } });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error generating job consumption report' });
   }
 };

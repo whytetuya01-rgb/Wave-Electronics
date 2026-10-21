@@ -16,6 +16,10 @@ import {
   Clock,
   AlertCircle,
   X,
+  Workflow,
+  Package,
+  History,
+  CalendarClock,
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -30,6 +34,12 @@ export const Dashboard: React.FC = () => {
   });
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
 
+  const [jobStats, setJobStats] = useState({ openJobsCount: 0, draftJobsCount: 0, overdueOpenJobs: 0 });
+  const [vendorStats, setVendorStats] = useState({ totalUnitsWithVendors: 0, totalValuationWithVendors: 0, activeJobsHoldingMaterial: 0 });
+  const [pendingSummary, setPendingSummary] = useState({ totalPendingJobs: 0, overdueJobsCount: 0 });
+  const [overdueByVendor, setOverdueByVendor] = useState<{ vendor: string; jobs: any[] }[]>([]);
+  const [recentMovements, setRecentMovements] = useState<any[]>([]);
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -38,11 +48,15 @@ export const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       setErrorMsg('');
-      const [compRes, catRes, locRes, lowRes] = await Promise.all([
+      const [compRes, catRes, locRes, lowRes, jobSummaryRes, vendorMaterialRes, pendingJobsRes, ledgerRes] = await Promise.all([
         api.get('/components?limit=200'),
         api.get('/masters/categories'),
         api.get('/masters/locations'),
         api.get('/components?lowStockOnly=true'),
+        api.get('/jobs/stats/summary'),
+        api.get('/reports/material-with-vendors'),
+        api.get('/reports/pending-jobs'),
+        api.get('/reports/stock-ledger?limit=10'),
       ]);
 
       const components = compRes.data.data || [];
@@ -60,6 +74,34 @@ export const Dashboard: React.FC = () => {
       });
 
       setLowStockItems(lowRes.data.data || []);
+
+      setJobStats({
+        openJobsCount: jobSummaryRes.data.openJobsCount || 0,
+        draftJobsCount: jobSummaryRes.data.draftJobsCount || 0,
+        overdueOpenJobs: jobSummaryRes.data.overdueOpenJobs || 0,
+      });
+
+      setVendorStats({
+        totalUnitsWithVendors: vendorMaterialRes.data.summary?.totalUnitsWithVendors || 0,
+        totalValuationWithVendors: vendorMaterialRes.data.summary?.totalValuationWithVendors || 0,
+        activeJobsHoldingMaterial: vendorMaterialRes.data.summary?.activeJobsHoldingMaterial || 0,
+      });
+
+      setPendingSummary({
+        totalPendingJobs: pendingJobsRes.data.summary?.totalPendingJobs || 0,
+        overdueJobsCount: pendingJobsRes.data.summary?.overdueJobsCount || 0,
+      });
+
+      const overdueJobs = (pendingJobsRes.data.data || []).filter((j: any) => j.isOverdue);
+      const grouped = new Map<string, any[]>();
+      overdueJobs.forEach((j: any) => {
+        const key = j.vendor || 'Unknown Vendor';
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(j);
+      });
+      setOverdueByVendor(Array.from(grouped.entries()).map(([vendor, jobs]) => ({ vendor, jobs })));
+
+      setRecentMovements(ledgerRes.data.data || []);
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
       setErrorMsg(error.response?.data?.message || 'Failed to load dashboard data. Try refreshing the page.');
@@ -161,6 +203,150 @@ export const Dashboard: React.FC = () => {
           staggerIndex={3}
         />
       </div>
+
+      {/* Job & Vendor Monitoring KPI Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Link to="/jobs" className="block">
+          <StatCard
+            title="Open Jobs"
+            value={jobStats.openJobsCount}
+            icon={Workflow}
+            subtitle={`${jobStats.draftJobsCount} in draft`}
+            iconBgClass="bg-[#A69B8D]/15"
+            iconColorClass="text-[#807365]"
+            loading={loading}
+          />
+        </Link>
+        <Link to="/reports" className="block">
+          <StatCard
+            title="Material With Vendors"
+            value={`${vendorStats.totalUnitsWithVendors.toLocaleString()} pcs`}
+            icon={Package}
+            subtitle={`₹${vendorStats.totalValuationWithVendors.toLocaleString('en-IN', { maximumFractionDigits: 0 })} held across ${vendorStats.activeJobsHoldingMaterial} job(s)`}
+            iconBgClass="bg-[#F7F6F3]"
+            iconColorClass="text-[#6B6863]"
+            loading={loading}
+          />
+        </Link>
+        <Link to="/reports" className="block">
+          <StatCard
+            title="Pending Finished Receipts"
+            value={pendingSummary.totalPendingJobs}
+            icon={Clock}
+            subtitle="Jobs awaiting circuits from vendor"
+            iconBgClass="bg-[#B7791F]/10"
+            iconColorClass="text-[#B7791F]"
+            loading={loading}
+          />
+        </Link>
+        <StatCard
+          title="Overdue Jobs"
+          value={jobStats.overdueOpenJobs}
+          icon={CalendarClock}
+          subtitle="Past target date, not yet closed"
+          iconBgClass={jobStats.overdueOpenJobs > 0 ? 'bg-[#C2413A]/10' : 'bg-[#168060]/10'}
+          iconColorClass={jobStats.overdueOpenJobs > 0 ? 'text-[#C2413A]' : 'text-[#168060]'}
+          badge={
+            jobStats.overdueOpenJobs > 0
+              ? { label: 'Follow Up', variant: 'danger' }
+              : { label: 'On Track', variant: 'success' }
+          }
+          loading={loading}
+        />
+      </div>
+
+      {/* Overdue Jobs Grouped By Vendor */}
+      {overdueByVendor.length > 0 && (
+        <div className="enterprise-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E6E3DE] flex items-center gap-2.5 bg-white">
+            <span className="w-2 h-2 rounded-full bg-[#C2413A]" />
+            <h2 className="text-sm font-semibold text-[#171717] tracking-tight">
+              Overdue Jobs By Vendor (Past Target Date)
+            </h2>
+          </div>
+          <div className="divide-y divide-[#E6E3DE]/60">
+            {overdueByVendor.map((group) => (
+              <div key={group.vendor} className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2 text-sm font-medium text-[#171717]">
+                  <Truck className="w-4 h-4 text-[#A69B8D]" />
+                  {group.vendor}
+                  <span className="text-xs text-[#6B6863] font-normal">({group.jobs.length} job(s))</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.jobs.map((j: any) => (
+                    <Link
+                      key={j._id}
+                      to="/jobs"
+                      className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-[#C2413A]/10 text-[#C2413A] border border-[#C2413A]/25 hover:bg-[#C2413A]/20 transition-colors"
+                      title={`Due ${j.deliveryDueDate ? new Date(j.deliveryDueDate).toLocaleDateString() : ''}`}
+                    >
+                      {j.jobNumber}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Stock Movements */}
+      {recentMovements.length > 0 && (
+        <div className="enterprise-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E6E3DE] flex items-center justify-between bg-white">
+            <div className="flex items-center gap-2.5">
+              <History className="w-4 h-4 text-[#807365]" />
+              <h2 className="text-sm font-semibold text-[#171717] tracking-tight">Recent Stock Movements</h2>
+            </div>
+            <Link
+              to="/reports"
+              className="text-xs font-medium text-[#141414] hover:text-[#807365] flex items-center gap-1 transition-colors"
+            >
+              <span>View Full Ledger</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr>
+                  <th className="th-enterprise">Date</th>
+                  <th className="th-enterprise">Component</th>
+                  <th className="th-enterprise">Type</th>
+                  <th className="th-enterprise text-right">Qty Change</th>
+                  <th className="th-enterprise">Reference</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E6E3DE]/60">
+                {recentMovements.map((tx: any) => (
+                  <tr key={tx._id} className="tr-enterprise">
+                    <td className="td-enterprise text-[12px] text-[#6B6863] whitespace-nowrap">
+                      {new Date(tx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    </td>
+                    <td className="td-enterprise font-mono text-[12px] text-[#171717]">
+                      {tx.componentId?.partCode || '—'}
+                    </td>
+                    <td className="td-enterprise">
+                      <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[#F7F6F3] text-[#383531] border border-[#E6E3DE]">
+                        {tx.type}
+                      </span>
+                    </td>
+                    <td
+                      className={`td-enterprise text-right font-mono font-semibold ${
+                        tx.qtyChange > 0 ? 'text-[#168060]' : tx.qtyChange < 0 ? 'text-[#C2413A]' : 'text-[#6B6863]'
+                      }`}
+                    >
+                      {tx.qtyChange > 0 ? '+' : ''}
+                      {tx.qtyChange}
+                    </td>
+                    <td className="td-enterprise text-[12px] text-[#6B6863]">{tx.referenceNo || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Critical Stock Warning Table */}
       {lowStockItems.length > 0 && (

@@ -143,7 +143,7 @@ export const Settings: React.FC = () => {
           optional
           error={form.formState.errors.logoPath?.message}
           id="s-logo"
-          helperText="Absolute path on the server to a logo image file; left blank shows text-only header."
+          helperText="Absolute path to a PNG/JPEG on a self-hosted server. Left blank (and on Vercel), the logo deployed with the API at server/assets/company-logo.png is used."
         >
           <ValidatedInput id="s-logo" leftIcon={<Image />} placeholder="/srv/wave/assets/logo.png" {...form.register('logoPath')} />
         </FormField>

@@ -8,9 +8,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      react: path.resolve(__dirname, './node_modules/react'),
-      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
     },
+    // One React copy, wherever npm put it: client/node_modules after a
+    // standalone install, the repo-root node_modules after a workspace
+    // install (as on Vercel). Pinning a path here broke the latter.
     dedupe: ['react', 'react-dom'],
   },
   server: {

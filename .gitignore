@@ -55,3 +55,6 @@ Thumbs.db
 # Logs & temp files
 logs/
 *.log
+
+# Vercel CLI project link and local build output
+.vercel/

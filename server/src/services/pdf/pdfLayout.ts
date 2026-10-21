@@ -1,5 +1,21 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
+import path from 'path';
+
+// server/assets, from both src/services/pdf (tsx) and dist/services/pdf
+// (compiled). Vercel traces this exact file into the API function, where a
+// path on a self-hosted server's disk does not exist.
+const ASSETS_DIR = path.join(__dirname, '..', '..', '..', 'assets');
+const BUNDLED_LOGO = path.join(ASSETS_DIR, 'company-logo.png');
+
+// First logo file that exists: the Settings path, then COMPANY_LOGO_PATH,
+// then the bundled one - so a path left over from a self-hosted setup falls
+// back to the bundled logo on Vercel instead of dropping the branding.
+function resolveLogoPath(configured?: string): string | undefined {
+  return [configured, process.env.COMPANY_LOGO_PATH, BUNDLED_LOGO].find((p): p is string =>
+    Boolean(p && p.trim() && fs.existsSync(p))
+  );
+}
 
 // Shared PDFKit layout helpers for every generated document (Delivery
 // Challan, Job Receipt, and any future printable document). Kept deliberately
@@ -69,8 +85,8 @@ export interface CompanyInfo {
   logoPath?: string;
 }
 
-// Company header: name, optional address/GSTIN, optional logo (only drawn
-// if the configured file actually exists on disk), and the document title.
+// Company header: name, optional address/GSTIN, optional logo (see
+// resolveLogoPath - only drawn if a file exists), and the document title.
 // `companyInfo` (sourced from the admin-editable Settings document) takes
 // precedence when provided; falls back to the original env-var values so
 // existing callers that don't pass it keep working unchanged. Returns the Y
@@ -87,15 +103,13 @@ export function drawCompanyHeader(
   const companyName = companyInfo?.companyName || 'WAVE ELECTRONICS';
   const address = companyInfo?.address ?? process.env.COMPANY_ADDRESS;
   const gstin = companyInfo?.gstin ?? process.env.COMPANY_GSTIN;
-  const logoPath = companyInfo?.logoPath ?? process.env.COMPANY_LOGO_PATH;
+  const logoPath = resolveLogoPath(companyInfo?.logoPath);
 
   let textX = left;
   if (logoPath) {
     try {
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, left, top, { width: 42, height: 42 });
-        textX = left + 52;
-      }
+      doc.image(logoPath, left, top, { width: 42, height: 42 });
+      textX = left + 52;
     } catch {
       // Invalid/unreadable image - fall back to text-only header rather
       // than failing the whole document.

@@ -8,6 +8,10 @@ export default defineConfig({
         alias: {
             '@': path.resolve(__dirname, './src'),
         },
+        // One React copy, wherever npm put it: client/node_modules after a
+        // standalone install, the repo-root node_modules after a workspace
+        // install (as on Vercel). Pinning a path here broke the latter.
+        dedupe: ['react', 'react-dom'],
     },
     server: {
         port: 5173,

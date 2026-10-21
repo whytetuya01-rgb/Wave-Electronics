@@ -37,6 +37,17 @@ try {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Vercel sets VERCEL=1 in its builds, functions and `vercel dev`. There the
+// platform calls the exported app per request, so this process never listens.
+const onVercel = Boolean(process.env.VERCEL);
+
+// Behind Vercel's proxy every request comes from the proxy, which puts the
+// client address in X-Forwarded-For. Trusting that one hop makes req.ip the
+// real client, so the login rate limiter counts per user, not per proxy.
+if (onVercel) {
+  app.set('trust proxy', 1);
+}
+
 // Middleware
 // CSP/COEP disabled: this API serves JSON only (no HTML/assets), and a
 // restrictive default CSP has no effect here while risking false positives
@@ -101,6 +112,19 @@ app.get('/api/health', async (req: Request, res: Response) => {
   });
 });
 
+// Every route below needs the database. On Vercel a request can arrive
+// before the connection is open, or after an attempt failed, so wait for the
+// shared connection and answer 503 rather than crash; the next request
+// retries. Locally start() has already connected, so this resolves at once.
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await connectDB();
+    next();
+  } catch {
+    res.status(503).json({ message: 'Database is unavailable. Please try again shortly.' });
+  }
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/masters', mastersRoutes);
@@ -131,12 +155,18 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 // Start Server
 async function start() {
-  await connectDB();
+  try {
+    await connectDB();
+  } catch {
+    process.exit(1);
+  }
   app.listen(PORT, () => {
     console.log(`⚡ [Wave Electronics API Server] running on http://localhost:${PORT}`);
   });
 }
 
-start();
+if (!onVercel) {
+  start();
+}
 
 export default app;

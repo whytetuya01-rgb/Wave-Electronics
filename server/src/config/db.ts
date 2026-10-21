@@ -2,8 +2,23 @@ import mongoose from 'mongoose';
 import { resolveMongoUri } from './env.js';
 
 let isReplicaSet = false;
+let connection: Promise<typeof mongoose> | null = null;
 
-export const connectDB = async () => {
+// Opens the shared connection once and hands the same promise to every
+// caller. Throws instead of exiting the process: on Vercel the API runs as a
+// function, so a failed attempt must leave the next request free to retry.
+// The local server and the scripts exit on the rejection themselves.
+export const connectDB = () => {
+  if (!connection) {
+    connection = openConnection().catch((error) => {
+      connection = null;
+      throw error;
+    });
+  }
+  return connection;
+};
+
+const openConnection = async () => {
   try {
     const conn = await mongoose.connect(resolveMongoUri());
     console.log(`[MongoDB Connected]: ${conn.connection.host}/${conn.connection.name}`);
@@ -56,17 +71,17 @@ export const connectDB = async () => {
     // multi-document operations Job Approval/Issue will perform (reserving
     // stock across many components + writing ledger entries together).
     if (process.env.NODE_ENV === 'production' && !isReplicaSet) {
-      console.error(
+      await mongoose.disconnect();
+      throw new Error(
         '[FATAL] Production requires a transaction-capable MongoDB replica set. ' +
           'Standalone MongoDB cannot guarantee atomic multi-document stock operations. Refusing to start.'
       );
-      process.exit(1);
     }
 
     return conn;
   } catch (error) {
     console.error('[MongoDB Connection Error]:', error);
-    process.exit(1);
+    throw error;
   }
 };
 

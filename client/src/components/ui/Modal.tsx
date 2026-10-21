@@ -46,7 +46,9 @@ export const Modal: React.FC<ModalProps> & {
   footer,
   headerAction,
   headerBanner,
-  closeOnBackdropClick = true,
+  // Off by default: a stray click outside a dialog must never discard a
+  // half-filled form. Dialogs close via the X, Cancel, or Esc.
+  closeOnBackdropClick = false,
   closeOnEsc = true,
   className = '',
   bodyClassName = '',
@@ -139,7 +141,9 @@ export const Modal: React.FC<ModalProps> & {
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-hidden select-none">
       {/* Refined Charcoal Overlay (rgba(23, 23, 23, 0.42) + 3px blur) */}
       <div
-        className="fixed inset-0 bg-[#171717]/45 backdrop-blur-[3px] transition-opacity duration-200 cursor-pointer"
+        className={`fixed inset-0 bg-[#171717]/45 backdrop-blur-[3px] transition-opacity duration-200 ${
+          closeOnBackdropClick ? 'cursor-pointer' : ''
+        }`}
         onClick={closeOnBackdropClick ? onClose : undefined}
         aria-hidden="true"
       />
@@ -169,9 +173,9 @@ export const Modal: React.FC<ModalProps> & {
                   {title}
                 </h3>
                 {subtitle && (
-                  <p className="text-xs sm:text-[13px] text-[#716B64] mt-1 leading-normal max-w-2xl">
+                  <div className="text-xs sm:text-[13px] text-[#716B64] mt-1 leading-normal max-w-2xl">
                     {subtitle}
-                  </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -252,7 +256,7 @@ export const ModalHeader: React.FC<{
           {badge}
         </div>
         {subtitle && (
-          <p className="text-xs sm:text-[13px] text-[#716B64] mt-1 leading-normal max-w-2xl">{subtitle}</p>
+          <div className="text-xs sm:text-[13px] text-[#716B64] mt-1 leading-normal max-w-2xl">{subtitle}</div>
         )}
       </div>
     </div>

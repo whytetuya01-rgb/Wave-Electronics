@@ -1,6 +1,9 @@
 import React from 'react';
 import { Modal } from '../ui/Modal';
 import { ButtonSpinner } from '../ui/Loading';
+import { FormField, FormError } from '../ui/FormField';
+import { ValidatedInput, ValidatedTextarea } from '../ui/ValidatedInput';
+import { SearchableSelect } from '../ui/SearchableSelect';
 import { Workflow, Plus, Trash, AlertTriangle, AlertCircle } from 'lucide-react';
 import { VendorOption, CircuitOption, JobCircuitRow, JobListItem } from './jobTypes';
 
@@ -30,13 +33,11 @@ interface JobFormModalProps {
   onCircuitRowChange: (index: number, field: 'circuitId' | 'orderedQty', val: any) => void;
   aggregatedBomPreview: BomPreviewRow[];
   submitting: boolean;
-  formError: string;
+  formError?: string;
+  fieldErrors?: Record<string, string>;
   onSubmit: (e: React.FormEvent) => void;
 }
 
-// Create / Edit Job Modal - moved verbatim out of pages/Jobs.tsx during the
-// stabilization refactor. Jobs.tsx still owns all the underlying state and
-// handlers; this component is purely presentational.
 export const JobFormModal: React.FC<JobFormModalProps> = ({
   isOpen,
   onClose,
@@ -53,6 +54,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   aggregatedBomPreview,
   submitting,
   formError,
+  fieldErrors = {},
   onSubmit,
 }) => {
   return (
@@ -94,39 +96,45 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="label-text block mb-1.5">
-              Vendor <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.vendorId}
-              onChange={(e) => onFormDataChange({ ...formData, vendorId: e.target.value })}
-              required
-              className="select-enterprise w-full"
-            >
-              <option value="">Select Vendor...</option>
-              {vendors.map((v) => (
-                <option key={v._id} value={v._id}>
-                  {v.name} ({v.city})
-                </option>
-              ))}
-            </select>
+            <FormField label="Vendor" required error={fieldErrors['vendorId']}>
+              <SearchableSelect
+                options={vendors.map((v) => ({
+                  value: v._id,
+                  label: v.name,
+                  description: v.city,
+                }))}
+                value={formData.vendorId}
+                onChange={(val) => onFormDataChange({ ...formData, vendorId: val })}
+                placeholder="Select Vendor..."
+                searchPlaceholder="Search vendor name or city..."
+                hasError={!!fieldErrors['vendorId']}
+              />
+            </FormField>
           </div>
 
           <div>
-            <label className="label-text block mb-1.5">Target Completion Date</label>
-            <input
-              type="date"
-              value={formData.targetDate}
-              onChange={(e) => onFormDataChange({ ...formData, targetDate: e.target.value })}
-              className="input-enterprise w-full"
-            />
+            <FormField label="Target Completion Date" required error={fieldErrors['targetDate']}>
+              <ValidatedInput
+                type="date"
+                value={formData.targetDate}
+                onChange={(e) => onFormDataChange({ ...formData, targetDate: e.target.value })}
+                hasError={!!fieldErrors['targetDate']}
+              />
+            </FormField>
           </div>
         </div>
 
         {/* Circuit Selection Lines */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="label-text font-semibold text-slate-800">Circuits to Assemble</label>
+            <div>
+              <label className="label-text font-semibold text-slate-800 block">
+                Circuits to Assemble <span className="text-[#C2413A]">*</span>
+              </label>
+              {fieldErrors['jobCircuits'] && (
+                <FormError message={fieldErrors['jobCircuits']} className="mt-1" />
+              )}
+            </div>
             <button
               type="button"
               onClick={onAddCircuitRow}
@@ -137,50 +145,63 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             </button>
           </div>
 
-          <div className="space-y-2">
-            {jobCircuitRows.map((row, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 bg-slate-50/50">
-                <div className="flex-1">
-                  <select
-                    value={row.circuitId}
-                    onChange={(e) => onCircuitRowChange(idx, 'circuitId', e.target.value)}
-                    required
-                    className="select-enterprise w-full text-sm bg-white"
-                  >
-                    <option value="">Select Circuit BOM...</option>
-                    {circuits.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.circuitCode} — {c.name} (v{c.version}) [{c.bomItemCount} components]
-                      </option>
-                    ))}
-                  </select>
-                </div>
+          <div className="space-y-3">
+            {jobCircuitRows.map((row, idx) => {
+              const circuitOptions = circuits.map((c) => ({
+                value: c._id,
+                label: `${c.circuitCode} — ${c.name} (v${c.version})`,
+                description: `${c.bomItemCount} components`,
+                disabled: jobCircuitRows.some((r, i) => i !== idx && r.circuitId === c._id),
+              }));
 
-                <div className="w-32">
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={row.orderedQty}
-                    onChange={(e) => onCircuitRowChange(idx, 'orderedQty', parseInt(e.target.value) || 0)}
-                    required
-                    placeholder="Qty"
-                    className="input-enterprise text-right font-mono bg-white"
-                  />
-                </div>
+              return (
+                <div key={idx} className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <div className="flex-1 w-full">
+                      <SearchableSelect
+                        options={circuitOptions}
+                        value={row.circuitId}
+                        onChange={(val) => onCircuitRowChange(idx, 'circuitId', val)}
+                        placeholder="Select Circuit BOM..."
+                        searchPlaceholder="Search circuit code or name..."
+                        hasError={!!fieldErrors[`jobCircuits.${idx}.circuitId`]}
+                      />
+                      {fieldErrors[`jobCircuits.${idx}.circuitId`] && (
+                        <FormError message={fieldErrors[`jobCircuits.${idx}.circuitId`]} className="mt-1" />
+                      )}
+                    </div>
 
-                {jobCircuitRows.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveCircuitRow(idx)}
-                    className="text-slate-400 hover:text-red-600 p-1.5 transition-colors"
-                    title="Remove Row"
-                  >
-                    <Trash className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+                    <div className="w-full sm:w-36 flex items-center gap-2">
+                      <div className="flex-1">
+                        <ValidatedInput
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={row.orderedQty === 0 ? '' : row.orderedQty}
+                          onChange={(e) => onCircuitRowChange(idx, 'orderedQty', parseInt(e.target.value) || 0)}
+                          placeholder="Qty"
+                          className="text-right font-mono"
+                          hasError={!!fieldErrors[`jobCircuits.${idx}.orderedQty`]}
+                        />
+                      </div>
+                      {jobCircuitRows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveCircuitRow(idx)}
+                          className="text-slate-400 hover:text-red-600 p-2 transition-colors rounded-lg hover:bg-red-50 shrink-0"
+                          title="Remove Row"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {fieldErrors[`jobCircuits.${idx}.orderedQty`] && (
+                    <FormError message={fieldErrors[`jobCircuits.${idx}.orderedQty`]} />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -236,14 +257,15 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
         )}
 
         <div>
-          <label className="label-text block mb-1.5">Remarks / Work Instructions</label>
-          <textarea
-            rows={2}
-            placeholder="e.g. Special testing requirements, delivery instructions..."
-            value={formData.remarks}
-            onChange={(e) => onFormDataChange({ ...formData, remarks: e.target.value })}
-            className="w-full px-3 py-2 rounded-[10px] border border-[#E6E3DE] text-sm text-[#171717] placeholder-[#6B6863]/60 focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414] transition-all bg-white"
-          />
+          <FormField label="Remarks / Work Instructions" error={fieldErrors['remarks']}>
+            <ValidatedTextarea
+              rows={2}
+              placeholder="e.g. Special testing requirements, delivery instructions..."
+              value={formData.remarks}
+              onChange={(e) => onFormDataChange({ ...formData, remarks: e.target.value })}
+              hasError={!!fieldErrors['remarks']}
+            />
+          </FormField>
         </div>
       </div>
     </Modal>

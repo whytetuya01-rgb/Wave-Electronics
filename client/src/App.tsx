@@ -14,6 +14,7 @@ import { FinishedGoods } from './pages/FinishedGoods';
 import { Reports } from './pages/Reports';
 import { AppLoader } from './components/ui/Loading';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
+import { GlobalToaster } from './components/ui/GlobalToaster';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -60,6 +61,7 @@ export const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      <GlobalToaster />
     </AuthProvider>
   );
 };

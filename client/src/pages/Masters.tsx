@@ -1,9 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { FolderTree, Ruler, MapPin, Plus, Trash2, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
+import { FormField } from '../components/ui/FormField';
+import { ValidatedInput, ValidatedTextarea } from '../components/ui/ValidatedInput';
+import { toast } from '../utils/toast';
+import {
+  masterCategorySchema,
+  masterUnitSchema,
+  masterLocationSchema,
+} from '../utils/validationSchemas';
+import type { z } from 'zod';
+import { applyServerValidationErrors, getApiErrorMessage } from '../utils/apiErrors';
+
+type CategoryFormData = z.infer<typeof masterCategorySchema>;
+type UnitFormData = z.infer<typeof masterUnitSchema>;
+type LocationFormData = z.infer<typeof masterLocationSchema>;
 
 export const Masters: React.FC = () => {
   const { isStoreKeeper, isAdmin } = useAuth();
@@ -13,19 +29,45 @@ export const Masters: React.FC = () => {
   const [units, setUnits] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
 
-  // Form states
-  const [categoryName, setCategoryName] = useState('');
-  const [categoryDesc, setCategoryDesc] = useState('');
+  // Category Form
+  const {
+    register: registerCat,
+    handleSubmit: handleSubmitCat,
+    reset: resetCat,
+    setError: setCatError,
+    formState: { errors: catErrors, isSubmitting: isCatSubmitting },
+  } = useForm<CategoryFormData>({
+    resolver: zodResolver(masterCategorySchema),
+    mode: 'onBlur',
+    defaultValues: { name: '', description: '' },
+  });
 
-  const [unitName, setUnitName] = useState('');
-  const [unitShortCode, setUnitShortCode] = useState('');
+  // Unit Form
+  const {
+    register: registerUnit,
+    handleSubmit: handleSubmitUnit,
+    reset: resetUnit,
+    setError: setUnitError,
+    formState: { errors: unitErrors, isSubmitting: isUnitSubmitting },
+  } = useForm<UnitFormData>({
+    resolver: zodResolver(masterUnitSchema),
+    mode: 'onBlur',
+    defaultValues: { name: '', shortCode: '' },
+  });
 
-  const [locName, setLocName] = useState('');
-  const [locZone, setLocZone] = useState('');
-  const [locDesc, setLocDesc] = useState('');
+  // Location Form
+  const {
+    register: registerLoc,
+    handleSubmit: handleSubmitLoc,
+    reset: resetLoc,
+    setError: setLocError,
+    formState: { errors: locErrors, isSubmitting: isLocSubmitting },
+  } = useForm<LocationFormData>({
+    resolver: zodResolver(masterLocationSchema),
+    mode: 'onBlur',
+    defaultValues: { name: '', zone: '', description: '' },
+  });
 
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -51,22 +93,26 @@ export const Masters: React.FC = () => {
       setLocations(locRes.data);
     } catch (err: any) {
       console.error(err);
+      toast.error('Unable to load master data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
+  const handleAddCategory = async (data: CategoryFormData) => {
     try {
-      await api.post('/masters/categories', { name: categoryName, description: categoryDesc });
-      setCategoryName('');
-      setCategoryDesc('');
-      setSuccessMsg('Category created successfully');
+      await api.post('/masters/categories', {
+        name: data.name.trim(),
+        description: data.description?.trim() || '',
+      });
+      resetCat();
+      toast.success('Category created successfully');
       fetchMasters();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to add category');
+      const fieldErrorFound = applyServerValidationErrors(err, setCatError);
+      if (!fieldErrorFound) {
+        toast.error(getApiErrorMessage(err, 'Failed to add category'));
+      }
     }
   };
 
@@ -74,17 +120,20 @@ export const Masters: React.FC = () => {
     setDeleteTarget({ id: cat._id, type: 'category', name: cat.name });
   };
 
-  const handleAddUnit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
+  const handleAddUnit = async (data: UnitFormData) => {
     try {
-      await api.post('/masters/units', { name: unitName, shortCode: unitShortCode });
-      setUnitName('');
-      setUnitShortCode('');
-      setSuccessMsg('Unit created successfully');
+      await api.post('/masters/units', {
+        name: data.name.trim(),
+        shortCode: data.shortCode.trim().toUpperCase(),
+      });
+      resetUnit();
+      toast.success('Unit created successfully');
       fetchMasters();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to add unit');
+      const fieldErrorFound = applyServerValidationErrors(err, setUnitError);
+      if (!fieldErrorFound) {
+        toast.error(getApiErrorMessage(err, 'Failed to add unit'));
+      }
     }
   };
 
@@ -92,18 +141,21 @@ export const Masters: React.FC = () => {
     setDeleteTarget({ id: u._id, type: 'unit', name: `${u.name} (${u.shortCode})` });
   };
 
-  const handleAddLocation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
+  const handleAddLocation = async (data: LocationFormData) => {
     try {
-      await api.post('/masters/locations', { name: locName, zone: locZone, description: locDesc });
-      setLocName('');
-      setLocZone('');
-      setLocDesc('');
-      setSuccessMsg('Storage location created successfully');
+      await api.post('/masters/locations', {
+        name: data.name.trim(),
+        zone: data.zone?.trim() || '',
+        description: data.description?.trim() || '',
+      });
+      resetLoc();
+      toast.success('Storage location created successfully');
       fetchMasters();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to add location');
+      const fieldErrorFound = applyServerValidationErrors(err, setLocError);
+      if (!fieldErrorFound) {
+        toast.error(getApiErrorMessage(err, 'Failed to add location'));
+      }
     }
   };
 
@@ -114,22 +166,21 @@ export const Masters: React.FC = () => {
   const executeDeleteTarget = async () => {
     if (!deleteTarget) return;
     setDeleteLoading(true);
-    setErrorMsg('');
     try {
       if (deleteTarget.type === 'category') {
         await api.delete(`/masters/categories/${deleteTarget.id}`);
-        setSuccessMsg(`Category '${deleteTarget.name}' deleted successfully`);
+        toast.success(`Category '${deleteTarget.name}' deleted successfully`);
       } else if (deleteTarget.type === 'unit') {
         await api.delete(`/masters/units/${deleteTarget.id}`);
-        setSuccessMsg(`Unit '${deleteTarget.name}' deleted successfully`);
+        toast.success(`Unit '${deleteTarget.name}' deleted successfully`);
       } else if (deleteTarget.type === 'location') {
         await api.delete(`/masters/locations/${deleteTarget.id}`);
-        setSuccessMsg(`Location '${deleteTarget.name}' deleted successfully`);
+        toast.success(`Location '${deleteTarget.name}' deleted successfully`);
       }
       setDeleteTarget(null);
       fetchMasters();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || `Failed to delete ${deleteTarget.type}`);
+      toast.error(getApiErrorMessage(err, `Failed to delete ${deleteTarget.type}`));
     } finally {
       setDeleteLoading(false);
     }
@@ -144,37 +195,10 @@ export const Masters: React.FC = () => {
         </p>
       </div>
 
-      {errorMsg && (
-        <div className="p-3 rounded-[10px] bg-[#C2413A]/10 border border-[#C2413A]/25 text-[#C2413A] text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-[#C2413A]" />
-            <span>{errorMsg}</span>
-          </div>
-          <button onClick={() => setErrorMsg('')} className="text-[#C2413A]/60 hover:text-[#C2413A]">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {successMsg && (
-        <div className="p-3 rounded-[10px] bg-[#168060]/10 border border-[#168060]/25 text-[#168060] text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-[#168060]" />
-            <span>{successMsg}</span>
-          </div>
-          <button onClick={() => setSuccessMsg('')} className="text-[#168060]/60 hover:text-[#168060]">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-[#E6E3DE]">
         <button
-          onClick={() => {
-            setActiveTab('categories');
-            setErrorMsg('');
-          }}
+          onClick={() => setActiveTab('categories')}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
             activeTab === 'categories'
               ? 'border-[#807365] text-[#171717]'
@@ -186,10 +210,7 @@ export const Masters: React.FC = () => {
         </button>
 
         <button
-          onClick={() => {
-            setActiveTab('units');
-            setErrorMsg('');
-          }}
+          onClick={() => setActiveTab('units')}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
             activeTab === 'units'
               ? 'border-[#807365] text-[#171717]'
@@ -201,10 +222,7 @@ export const Masters: React.FC = () => {
         </button>
 
         <button
-          onClick={() => {
-            setActiveTab('locations');
-            setErrorMsg('');
-          }}
+          onClick={() => setActiveTab('locations')}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
             activeTab === 'locations'
               ? 'border-[#807365] text-[#171717]'
@@ -221,33 +239,30 @@ export const Masters: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="md:col-span-1 enterprise-card p-4 h-fit">
             <h3 className="text-xs font-bold text-[#171717] mb-2.5">Add Category</h3>
-            <form onSubmit={handleAddCategory} className="space-y-3">
-              <div>
-                <label className="label-text block mb-1">Name</label>
-                <input
+            <form onSubmit={handleSubmitCat(handleAddCategory)} className="space-y-3" noValidate>
+              <FormField label="Category Name" error={catErrors.name?.message} required>
+                <ValidatedInput
                   type="text"
-                  required
                   placeholder="e.g. Optocouplers"
-                  value={categoryName}
-                  onChange={(e) => setCategoryName(e.target.value)}
-                  className="input-enterprise !h-9 text-xs"
+                  hasError={!!catErrors.name}
+                  {...registerCat('name')}
                 />
-              </div>
-              <div>
-                <label className="label-text block mb-1">Description</label>
-                <textarea
+              </FormField>
+              <FormField label="Description" error={catErrors.description?.message}>
+                <ValidatedTextarea
                   rows={2}
                   placeholder="Description..."
-                  value={categoryDesc}
-                  onChange={(e) => setCategoryDesc(e.target.value)}
-                  className="textarea-enterprise !p-2.5 text-xs"
-                ></textarea>
-              </div>
+                  hasError={!!catErrors.description}
+                  {...registerCat('description')}
+                />
+              </FormField>
               <button
                 type="submit"
-                className="btn-primary w-full"
+                disabled={isCatSubmitting}
+                className="btn-primary w-full flex items-center justify-center gap-2"
               >
-                Create Category
+                {isCatSubmitting && <ButtonSpinner />}
+                <span>Create Category</span>
               </button>
             </form>
           </div>
@@ -300,34 +315,31 @@ export const Masters: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="md:col-span-1 enterprise-card p-4 h-fit">
             <h3 className="text-xs font-bold text-[#171717] mb-2.5">Add Unit</h3>
-            <form onSubmit={handleAddUnit} className="space-y-3">
-              <div>
-                <label className="label-text block mb-1">Unit Name</label>
-                <input
+            <form onSubmit={handleSubmitUnit(handleAddUnit)} className="space-y-3" noValidate>
+              <FormField label="Unit Name" error={unitErrors.name?.message} required>
+                <ValidatedInput
                   type="text"
-                  required
                   placeholder="e.g. Kilograms"
-                  value={unitName}
-                  onChange={(e) => setUnitName(e.target.value)}
-                  className="input-enterprise !h-9 text-xs"
+                  hasError={!!unitErrors.name}
+                  {...registerUnit('name')}
                 />
-              </div>
-              <div>
-                <label className="label-text block mb-1">Short Code</label>
-                <input
+              </FormField>
+              <FormField label="Short Code" error={unitErrors.shortCode?.message} required hint="e.g. KG, NOS, MTR">
+                <ValidatedInput
                   type="text"
-                  required
                   placeholder="e.g. KG"
-                  value={unitShortCode}
-                  onChange={(e) => setUnitShortCode(e.target.value.toUpperCase())}
-                  className="input-enterprise !h-9 text-xs uppercase font-mono"
+                  className="uppercase font-mono"
+                  hasError={!!unitErrors.shortCode}
+                  {...registerUnit('shortCode')}
                 />
-              </div>
+              </FormField>
               <button
                 type="submit"
-                className="btn-primary w-full"
+                disabled={isUnitSubmitting}
+                className="btn-primary w-full flex items-center justify-center gap-2"
               >
-                Create Unit
+                {isUnitSubmitting && <ButtonSpinner />}
+                <span>Create Unit</span>
               </button>
             </form>
           </div>
@@ -380,43 +392,38 @@ export const Masters: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="md:col-span-1 enterprise-card p-4 h-fit">
             <h3 className="text-xs font-bold text-[#171717] mb-2.5">Add Storage Location</h3>
-            <form onSubmit={handleAddLocation} className="space-y-3">
-              <div>
-                <label className="label-text block mb-1">Rack / Bin Name</label>
-                <input
+            <form onSubmit={handleSubmitLoc(handleAddLocation)} className="space-y-3" noValidate>
+              <FormField label="Rack / Bin Name" error={locErrors.name?.message} required>
+                <ValidatedInput
                   type="text"
-                  required
                   placeholder="e.g. Rack D - Bin 04"
-                  value={locName}
-                  onChange={(e) => setLocName(e.target.value)}
-                  className="input-enterprise !h-9 text-xs"
+                  hasError={!!locErrors.name}
+                  {...registerLoc('name')}
                 />
-              </div>
-              <div>
-                <label className="label-text block mb-1">Zone (Optional)</label>
-                <input
+              </FormField>
+              <FormField label="Zone (Optional)" error={locErrors.zone?.message}>
+                <ValidatedInput
                   type="text"
                   placeholder="e.g. Zone D"
-                  value={locZone}
-                  onChange={(e) => setLocZone(e.target.value)}
-                  className="input-enterprise !h-9 text-xs"
+                  hasError={!!locErrors.zone}
+                  {...registerLoc('zone')}
                 />
-              </div>
-              <div>
-                <label className="label-text block mb-1">Description</label>
-                <textarea
+              </FormField>
+              <FormField label="Description" error={locErrors.description?.message}>
+                <ValidatedTextarea
                   rows={2}
                   placeholder="Notes..."
-                  value={locDesc}
-                  onChange={(e) => setLocDesc(e.target.value)}
-                  className="textarea-enterprise !p-2.5 text-xs"
-                ></textarea>
-              </div>
+                  hasError={!!locErrors.description}
+                  {...registerLoc('description')}
+                />
+              </FormField>
               <button
                 type="submit"
-                className="btn-primary w-full"
+                disabled={isLocSubmitting}
+                className="btn-primary w-full flex items-center justify-center gap-2"
               >
-                Create Location
+                {isLocSubmitting && <ButtonSpinner />}
+                <span>Create Location</span>
               </button>
             </form>
           </div>

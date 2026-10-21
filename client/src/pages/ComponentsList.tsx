@@ -1,9 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
+import { SimpleSelect } from '../components/ui/Select';
+import { FormField } from '../components/ui/FormField';
+import { ValidatedInput, ValidatedTextarea } from '../components/ui/ValidatedInput';
+import { toast } from '../utils/toast';
+import { handleApiError } from '../utils/apiErrors';
+import {
+  componentSchema,
+  ComponentFormData,
+  stockAdjustmentSchema,
+  StockAdjustmentFormData,
+} from '../utils/validationSchemas';
 import {
   Cpu,
   Plus,
@@ -73,31 +86,43 @@ export const ComponentsList: React.FC = () => {
   const [activeComponent, setActiveComponent] = useState<ComponentItem | null>(null);
   const [componentLedger, setComponentLedger] = useState<any[]>([]);
 
-  // Add Component Form State
-  const [formData, setFormData] = useState({
-    partCode: '',
-    name: '',
-    categoryId: '',
-    unitId: '',
-    locationId: '',
-    package: '',
-    minStock: 0,
-    ratePerUnit: 0,
-    openingStock: 0,
-    specKey: '',
-    specValue: '',
-  });
+  // Specs state for Add Component
+  const [specKey, setSpecKey] = useState('');
+  const [specValue, setSpecValue] = useState('');
   const [specList, setSpecList] = useState<{ [key: string]: string }>({});
-
-  // Adjust Form State
-  const [adjustData, setAdjustData] = useState({
-    qtyChange: 0,
-    reason: 'count_correction',
-    notes: '',
-  });
 
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // React Hook Form for Add Component
+  const addForm = useForm<ComponentFormData>({
+    resolver: zodResolver(componentSchema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      partCode: '',
+      name: '',
+      categoryId: '',
+      unitId: '',
+      locationId: '',
+      package: '',
+      openingStock: 0,
+      minStock: 0,
+      ratePerUnit: 0,
+    },
+  });
+
+  // React Hook Form for Stock Adjustment
+  const adjustForm = useForm<StockAdjustmentFormData>({
+    resolver: zodResolver(stockAdjustmentSchema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      qtyChange: 0,
+      reason: 'count_correction',
+      notes: '',
+    },
+  });
 
   useEffect(() => {
     fetchMasters();
@@ -155,49 +180,49 @@ export const ComponentsList: React.FC = () => {
 
   const handleOpenAdjust = (comp: ComponentItem) => {
     setActiveComponent(comp);
-    setAdjustData({ qtyChange: 0, reason: 'count_correction', notes: '' });
-    setFormError('');
+    resetAdjustForm();
     setShowAdjustModal(true);
   };
 
   const handleAddSpec = () => {
-    if (formData.specKey.trim() && formData.specValue.trim()) {
-      setSpecList({ ...specList, [formData.specKey.trim()]: formData.specValue.trim() });
-      setFormData({ ...formData, specKey: '', specValue: '' });
+    if (specKey.trim() && specValue.trim()) {
+      setSpecList({ ...specList, [specKey.trim()]: specValue.trim() });
+      setSpecKey('');
+      setSpecValue('');
     }
   };
 
-  const handleCreateComponent = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateComponent = async (data: ComponentFormData) => {
     setFormError('');
     setSubmitting(true);
 
     try {
       await api.post('/components', {
-        partCode: formData.partCode,
-        name: formData.name,
-        categoryId: formData.categoryId,
-        unitId: formData.unitId,
-        locationId: formData.locationId || undefined,
-        package: formData.package,
-        minStock: Number(formData.minStock),
-        ratePerUnit: Number(formData.ratePerUnit),
-        openingStock: Number(formData.openingStock),
+        partCode: data.partCode.trim().toUpperCase(),
+        name: data.name.trim(),
+        categoryId: data.categoryId,
+        unitId: data.unitId,
+        locationId: data.locationId || undefined,
+        package: data.package?.trim() || undefined,
+        minStock: Number(data.minStock) || 0,
+        ratePerUnit: Number(data.ratePerUnit) || 0,
+        openingStock: Number(data.openingStock) || 0,
         specifications: specList,
       });
 
+      toast.success(`Component '${data.partCode.toUpperCase()}' created successfully.`);
       setShowAddModal(false);
       resetAddForm();
       fetchComponents();
     } catch (err: any) {
-      setFormError(err.response?.data?.message || 'Failed to create component');
+      const msg = handleApiError(err, addForm.setError, 'Failed to create component');
+      setFormError(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleAdjustStock = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAdjustStock = async (data: StockAdjustmentFormData) => {
     if (!activeComponent) return;
 
     setFormError('');
@@ -205,35 +230,46 @@ export const ComponentsList: React.FC = () => {
 
     try {
       await api.post(`/components/${activeComponent._id}/adjust`, {
-        qtyChange: Number(adjustData.qtyChange),
-        reason: adjustData.reason,
-        notes: adjustData.notes,
+        qtyChange: Number(data.qtyChange),
+        reason: data.reason,
+        notes: data.notes?.trim() || undefined,
       });
 
+      toast.success(`Stock adjustment for ${activeComponent.partCode} committed to ledger.`);
       setShowAdjustModal(false);
       fetchComponents();
     } catch (err: any) {
-      setFormError(err.response?.data?.message || 'Failed to adjust stock');
+      const msg = handleApiError(err, adjustForm.setError, 'Failed to adjust stock');
+      setFormError(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
   const resetAddForm = () => {
-    setFormData({
+    addForm.reset({
       partCode: '',
       name: '',
       categoryId: '',
       unitId: '',
       locationId: '',
       package: '',
+      openingStock: 0,
       minStock: 0,
       ratePerUnit: 0,
-      openingStock: 0,
-      specKey: '',
-      specValue: '',
     });
     setSpecList({});
+    setSpecKey('');
+    setSpecValue('');
+    setFormError('');
+  };
+
+  const resetAdjustForm = () => {
+    adjustForm.reset({
+      qtyChange: 0,
+      reason: 'count_correction',
+      notes: '',
+    });
     setFormError('');
   };
 
@@ -298,18 +334,16 @@ export const ComponentsList: React.FC = () => {
         {/* Filters Group */}
         <div className="flex items-center gap-2 w-full md:w-auto">
           {/* Category Dropdown Filter */}
-          <select
+          <SimpleSelect
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="select-enterprise !h-9 text-xs w-auto"
-          >
-            <option value="">All Categories ({categories.length})</option>
-            {categories.map((cat) => (
-              <option key={cat._id} value={cat._id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
+            onChange={setSelectedCategory}
+            placeholder={`All Categories (${categories.length})`}
+            options={[
+              { value: '', label: `All Categories (${categories.length})` },
+              ...categories.map((cat) => ({ value: cat._id, label: cat.name })),
+            ]}
+            triggerClassName="!h-9 text-xs !w-48"
+          />
 
           {/* Low Stock Toggle Badge Filter */}
           <button
@@ -470,7 +504,7 @@ export const ComponentsList: React.FC = () => {
         icon={<Cpu className="w-5 h-5 text-[#807365]" />}
         title="Add New Component"
         subtitle="Configure part details and initialize opening stock ledger."
-        onSubmit={handleCreateComponent}
+        onSubmit={addForm.handleSubmit(handleCreateComponent)}
         footer={
           <>
             <button
@@ -482,159 +516,189 @@ export const ComponentsList: React.FC = () => {
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || addForm.formState.isSubmitting}
               className="btn-primary"
             >
-              {submitting && <ButtonSpinner />}
-              <span>{submitting ? 'Saving Component...' : 'Save Component'}</span>
+              {(submitting || addForm.formState.isSubmitting) && <ButtonSpinner />}
+              <span>{submitting || addForm.formState.isSubmitting ? 'Saving Component...' : 'Save Component'}</span>
             </button>
           </>
         }
       >
         <div className="space-y-4">
           {formError && (
-            <div className="p-3 rounded-lg bg-[#C2413A]/10 border border-[#C2413A]/20 text-[#C2413A] text-xs">
+            <div role="alert" className="p-3 rounded-lg bg-[#C2413A]/10 border border-[#C2413A]/20 text-[#C2413A] text-xs">
               {formError}
             </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="label-text block mb-1.5">
-                Part Code <span className="text-[#C2413A]">*</span>
-              </label>
-              <input
-                type="text"
-                required
+            <FormField
+              label="Part Code"
+              required
+              error={addForm.formState.errors.partCode?.message}
+              id="partCode"
+            >
+              <ValidatedInput
+                id="partCode"
                 placeholder="e.g. RES-10K-0805"
-                value={formData.partCode}
-                onChange={(e) => setFormData({ ...formData, partCode: e.target.value.toUpperCase() })}
-                className="input-enterprise uppercase font-mono"
+                className="uppercase font-mono"
+                hasError={Boolean(addForm.formState.errors.partCode)}
+                {...addForm.register('partCode')}
               />
-            </div>
+            </FormField>
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Component Name <span className="text-[#C2413A]">*</span>
-              </label>
-              <input
-                type="text"
-                required
+            <FormField
+              label="Component Name"
+              required
+              error={addForm.formState.errors.name?.message}
+              id="compName"
+            >
+              <ValidatedInput
+                id="compName"
                 placeholder="e.g. Resistor SMD 10K 1%"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="input-enterprise"
+                hasError={Boolean(addForm.formState.errors.name)}
+                {...addForm.register('name')}
               />
-            </div>
+            </FormField>
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Category <span className="text-[#C2413A]">*</span>
-              </label>
-              <select
-                required
-                value={formData.categoryId}
-                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                className="select-enterprise"
-              >
-                <option value="">Select Category</option>
-                {categories.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormField
+              label="Category"
+              required
+              error={addForm.formState.errors.categoryId?.message}
+              id="categoryId"
+            >
+              <Controller
+                control={addForm.control}
+                name="categoryId"
+                render={({ field }) => (
+                  <SimpleSelect
+                    id="categoryId"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Select Category"
+                    hasError={Boolean(addForm.formState.errors.categoryId)}
+                    options={categories.map((c) => ({ value: c._id, label: c.name }))}
+                  />
+                )}
+              />
+            </FormField>
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Unit of Measurement <span className="text-[#C2413A]">*</span>
-              </label>
-              <select
-                required
-                value={formData.unitId}
-                onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
-                className="select-enterprise"
-              >
-                <option value="">Select Unit</option>
-                {units.map((u) => (
-                  <option key={u._id} value={u._id}>
-                    {u.name} ({u.shortCode})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormField
+              label="Unit of Measurement"
+              required
+              error={addForm.formState.errors.unitId?.message}
+              id="unitId"
+            >
+              <Controller
+                control={addForm.control}
+                name="unitId"
+                render={({ field }) => (
+                  <SimpleSelect
+                    id="unitId"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Select Unit"
+                    hasError={Boolean(addForm.formState.errors.unitId)}
+                    options={units.map((u) => ({
+                      value: u._id,
+                      label: `${u.name} (${u.shortCode})`,
+                    }))}
+                  />
+                )}
+              />
+            </FormField>
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Storage Location
-              </label>
-              <select
-                value={formData.locationId}
-                onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
-                className="select-enterprise"
-              >
-                <option value="">Select Location</option>
-                {locations.map((l) => (
-                  <option key={l._id} value={l._id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormField
+              label="Storage Location"
+              optional
+              error={addForm.formState.errors.locationId?.message}
+              id="locationId"
+            >
+              <Controller
+                control={addForm.control}
+                name="locationId"
+                render={({ field }) => (
+                  <SimpleSelect
+                    id="locationId"
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    placeholder="Select Location"
+                    hasError={Boolean(addForm.formState.errors.locationId)}
+                    options={[
+                      { value: '', label: 'None (Unassigned)' },
+                      ...locations.map((l) => ({ value: l._id, label: l.name })),
+                    ]}
+                  />
+                )}
+              />
+            </FormField>
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Package / Footprint
-              </label>
-              <input
-                type="text"
+            <FormField
+              label="Package / Footprint"
+              optional
+              error={addForm.formState.errors.package?.message}
+              id="pkg"
+            >
+              <ValidatedInput
+                id="pkg"
                 placeholder="e.g. SMD 0805, DIP-8"
-                value={formData.package}
-                onChange={(e) => setFormData({ ...formData, package: e.target.value })}
-                className="input-enterprise font-mono"
+                className="font-mono"
+                hasError={Boolean(addForm.formState.errors.package)}
+                {...addForm.register('package')}
               />
-            </div>
+            </FormField>
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Opening Stock (Initial Store Qty)
-              </label>
-              <input
+            <FormField
+              label="Opening Stock (Initial Store Qty)"
+              optional
+              helperText="Auto-recorded to stock ledger"
+              error={addForm.formState.errors.openingStock?.message}
+              id="openingStock"
+            >
+              <ValidatedInput
+                id="openingStock"
                 type="number"
                 min="0"
-                value={formData.openingStock}
-                onChange={(e) => setFormData({ ...formData, openingStock: Math.max(0, parseInt(e.target.value) || 0) })}
-                className="input-enterprise font-mono font-bold"
+                className="font-mono font-bold"
+                hasError={Boolean(addForm.formState.errors.openingStock)}
+                {...addForm.register('openingStock')}
               />
-              <span className="helper-text block mt-1">Auto-recorded to stock ledger</span>
-            </div>
+            </FormField>
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Minimum Safety Stock
-              </label>
-              <input
+            <FormField
+              label="Minimum Safety Stock"
+              optional
+              error={addForm.formState.errors.minStock?.message}
+              id="minStock"
+            >
+              <ValidatedInput
+                id="minStock"
                 type="number"
                 min="0"
-                value={formData.minStock}
-                onChange={(e) => setFormData({ ...formData, minStock: Math.max(0, parseInt(e.target.value) || 0) })}
-                className="input-enterprise font-mono"
+                className="font-mono"
+                hasError={Boolean(addForm.formState.errors.minStock)}
+                {...addForm.register('minStock')}
               />
-            </div>
+            </FormField>
 
             <div className="sm:col-span-2">
-              <label className="label-text block mb-1.5">
-                Unit Purchase Rate (₹)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.ratePerUnit}
-                onChange={(e) => setFormData({ ...formData, ratePerUnit: Math.max(0, parseFloat(e.target.value) || 0) })}
-                className="input-enterprise font-mono"
-              />
+              <FormField
+                label="Unit Purchase Rate (₹)"
+                optional
+                error={addForm.formState.errors.ratePerUnit?.message}
+                id="ratePerUnit"
+              >
+                <ValidatedInput
+                  id="ratePerUnit"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="font-mono"
+                  hasError={Boolean(addForm.formState.errors.ratePerUnit)}
+                  {...addForm.register('ratePerUnit')}
+                />
+              </FormField>
             </div>
           </div>
 
@@ -647,15 +711,15 @@ export const ComponentsList: React.FC = () => {
               <input
                 type="text"
                 placeholder="Parameter (e.g. Voltage, Tolerance)"
-                value={formData.specKey}
-                onChange={(e) => setFormData({ ...formData, specKey: e.target.value })}
+                value={specKey}
+                onChange={(e) => setSpecKey(e.target.value)}
                 className="input-enterprise flex-1"
               />
               <input
                 type="text"
                 placeholder="Value (e.g. 50V, 1%)"
-                value={formData.specValue}
-                onChange={(e) => setFormData({ ...formData, specValue: e.target.value })}
+                value={specValue}
+                onChange={(e) => setSpecValue(e.target.value)}
                 className="input-enterprise flex-1"
               />
               <button
@@ -703,7 +767,7 @@ export const ComponentsList: React.FC = () => {
           icon={<Sliders className="w-5 h-5 text-[#807365]" />}
           title="Physical Stock Correction"
           subtitle={`Adjust recorded inventory for ${activeComponent.partCode}`}
-          onSubmit={handleAdjustStock}
+          onSubmit={adjustForm.handleSubmit(handleAdjustStock)}
           footer={
             <>
               <button
@@ -715,11 +779,11 @@ export const ComponentsList: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={submitting || adjustData.qtyChange === 0}
+                disabled={submitting || adjustForm.formState.isSubmitting}
                 className="btn-primary"
               >
-                {submitting && <ButtonSpinner />}
-                <span>{submitting ? 'Committing...' : 'Commit to Ledger'}</span>
+                {(submitting || adjustForm.formState.isSubmitting) && <ButtonSpinner />}
+                <span>{submitting || adjustForm.formState.isSubmitting ? 'Committing...' : 'Commit to Ledger'}</span>
               </button>
             </>
           }
@@ -739,54 +803,67 @@ export const ComponentsList: React.FC = () => {
             </div>
 
             {formError && (
-              <div className="p-2.5 rounded-lg bg-[#C2413A]/10 border border-[#C2413A]/20 text-[#C2413A] text-xs">
+              <div role="alert" className="p-2.5 rounded-lg bg-[#C2413A]/10 border border-[#C2413A]/20 text-[#C2413A] text-xs">
                 {formError}
               </div>
             )}
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Quantity Adjustment (+ Add, - Deduct) <span className="text-[#C2413A]">*</span>
-              </label>
-              <input
+            <FormField
+              label="Quantity Adjustment (+ Add, - Deduct)"
+              required
+              error={adjustForm.formState.errors.qtyChange?.message}
+              id="qtyChange"
+            >
+              <ValidatedInput
+                id="qtyChange"
                 type="number"
-                required
                 placeholder="e.g. +50 or -10"
-                value={adjustData.qtyChange || ''}
-                onChange={(e) => setAdjustData({ ...adjustData, qtyChange: parseInt(e.target.value) || 0 })}
-                className="input-enterprise font-mono font-bold"
+                className="font-mono font-bold"
+                hasError={Boolean(adjustForm.formState.errors.qtyChange)}
+                {...adjustForm.register('qtyChange')}
               />
-            </div>
+            </FormField>
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Mandatory Audit Reason <span className="text-[#C2413A]">*</span>
-              </label>
-              <select
-                required
-                value={adjustData.reason}
-                onChange={(e) => setAdjustData({ ...adjustData, reason: e.target.value })}
-                className="select-enterprise"
-              >
-                <option value="count_correction">Physical Count Correction</option>
-                <option value="damage">Damaged in Store</option>
-                <option value="lost">Lost / Misplaced</option>
-                <option value="other">Administrative Audit</option>
-              </select>
-            </div>
+            <FormField
+              label="Mandatory Audit Reason"
+              required
+              error={adjustForm.formState.errors.reason?.message}
+              id="adjustReason"
+            >
+              <Controller
+                control={adjustForm.control}
+                name="reason"
+                render={({ field }) => (
+                  <SimpleSelect
+                    id="adjustReason"
+                    value={field.value}
+                    onChange={field.onChange}
+                    hasError={Boolean(adjustForm.formState.errors.reason)}
+                    options={[
+                      { value: 'count_correction', label: 'Physical Count Correction' },
+                      { value: 'damage', label: 'Damaged in Store' },
+                      { value: 'lost', label: 'Lost / Misplaced' },
+                      { value: 'other', label: 'Administrative Audit' },
+                    ]}
+                  />
+                )}
+              />
+            </FormField>
 
-            <div>
-              <label className="label-text block mb-1.5">
-                Remarks / Notes
-              </label>
-              <textarea
+            <FormField
+              label="Remarks / Notes"
+              optional
+              error={adjustForm.formState.errors.notes?.message}
+              id="adjustNotes"
+            >
+              <ValidatedTextarea
+                id="adjustNotes"
                 rows={2}
                 placeholder="Notes for ledger..."
-                value={adjustData.notes}
-                onChange={(e) => setAdjustData({ ...adjustData, notes: e.target.value })}
-                className="w-full px-3 py-2 rounded-[9px] border border-[#E6E3DE] text-sm focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414] transition-all"
+                hasError={Boolean(adjustForm.formState.errors.notes)}
+                {...adjustForm.register('notes')}
               />
-            </div>
+            </FormField>
           </div>
         </Modal>
       )}

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Modal } from '../ui/Modal';
 import { ButtonSpinner } from '../ui/Loading';
+import { FormField } from '../ui/FormField';
+import { ValidatedTextarea } from '../ui/ValidatedInput';
 import { Lock, ShieldAlert } from 'lucide-react';
 import { ReconciliationData } from './jobTypes';
 
@@ -16,9 +18,6 @@ interface CloseJobModalProps {
   reconciliation: ReconciliationData | null;
 }
 
-// Job Close / Short-Close Modal - moved verbatim out of pages/Jobs.tsx
-// during the stabilization refactor. Jobs.tsx still owns all the underlying
-// state and handlers; this component is purely presentational.
 export const CloseJobModal: React.FC<CloseJobModalProps> = ({
   isOpen,
   onClose,
@@ -60,7 +59,11 @@ export const CloseJobModal: React.FC<CloseJobModalProps> = ({
       }
     >
       <div className="space-y-3">
-        {closeError && <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs">{closeError}</div>}
+        {closeError && (
+          <div className="p-2.5 rounded-md bg-[#C2413A]/10 border border-[#C2413A]/25 text-[#C2413A] text-xs">
+            {closeError}
+          </div>
+        )}
 
         {!reconciliation?.closeEligible && (
           <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
@@ -74,22 +77,21 @@ export const CloseJobModal: React.FC<CloseJobModalProps> = ({
 
         {closeIsShort && (
           <div>
-            <label className="label-text block mb-1.5">
-              Reason <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              rows={3}
-              required
-              placeholder="e.g. Vendor unable to deliver remaining units - short-closing per manager approval"
-              value={closeReason}
-              onChange={(e) => onCloseReasonChange(e.target.value)}
-              className="w-full px-3 py-2 rounded-[10px] border border-[#E6E3DE] text-sm text-[#171717] placeholder-[#6B6863]/60 focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414] transition-all bg-white"
-            />
+            <FormField label="Reason for Short-Closing" required error={closeError ? closeError : undefined}>
+              <ValidatedTextarea
+                rows={3}
+                required
+                placeholder="e.g. Vendor unable to deliver remaining units - short-closing per manager approval"
+                value={closeReason}
+                onChange={(e) => onCloseReasonChange(e.target.value)}
+                hasError={!!closeError && !closeReason.trim()}
+              />
+            </FormField>
           </div>
         )}
 
         {!closeIsShort && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[#6B6863]">
             Closing locks this job permanently. It will no longer accept material issues, receipts, or edits.
           </p>
         )}

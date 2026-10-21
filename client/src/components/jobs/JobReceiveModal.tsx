@@ -1,6 +1,8 @@
 import React from 'react';
 import { Modal } from '../ui/Modal';
 import { ButtonSpinner } from '../ui/Loading';
+import { FormField } from '../ui/FormField';
+import { ValidatedInput, ValidatedTextarea } from '../ui/ValidatedInput';
 import { CheckCheck, Ban, PackageCheck, ClipboardCheck } from 'lucide-react';
 import { ReceiveRow, JobCircuitReceiveRow, ComponentReturnRow, JobListItem } from './jobTypes';
 
@@ -66,7 +68,7 @@ export const ReceiveMaterialModal: React.FC<ReceiveMaterialModalProps> = ({
     >
       <div className="space-y-4">
         {error && (
-          <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs">
+          <div className="p-2.5 rounded-md bg-[#C2413A]/10 border border-[#C2413A]/25 text-[#C2413A] text-xs">
             {error}
           </div>
         )}
@@ -97,52 +99,57 @@ export const ReceiveMaterialModal: React.FC<ReceiveMaterialModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {receiveRows.map((row, idx) => (
-                    <tr key={row.componentId}>
-                      <td className="td-enterprise">
-                        <span className="font-mono font-semibold">{row.partCode}</span>
-                        <div className="text-[12px] text-slate-500">{row.name}</div>
-                      </td>
-                      <td className="td-enterprise text-right font-mono font-bold text-[#168060]">
-                        {row.remaining}
-                      </td>
-                      <td className="td-enterprise text-right">
-                        <input
-                          type="number"
-                          min="0"
-                          max={row.remaining}
-                          step="any"
-                          value={row.receivedQty}
-                          onChange={(e) => onRowChange(idx, 'receivedQty', parseFloat(e.target.value) || 0)}
-                          className="input-enterprise text-right font-mono w-24 ml-auto"
-                        />
-                      </td>
-                      <td className="td-enterprise text-right">
-                        <input
-                          type="number"
-                          min="0"
-                          max={row.remaining}
-                          step="any"
-                          value={row.damagedQty}
-                          onChange={(e) => onRowChange(idx, 'damagedQty', parseFloat(e.target.value) || 0)}
-                          className="input-enterprise text-right font-mono w-24 ml-auto"
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                  {receiveRows.map((row, idx) => {
+                    const isOver = row.receivedQty + row.damagedQty > row.remaining;
+                    return (
+                      <tr key={row.componentId}>
+                        <td className="td-enterprise">
+                          <span className="font-mono font-semibold">{row.partCode}</span>
+                          <div className="text-[12px] text-slate-500">{row.name}</div>
+                        </td>
+                        <td className="td-enterprise text-right font-mono font-bold text-[#168060]">
+                          {row.remaining}
+                        </td>
+                        <td className="td-enterprise text-right">
+                          <ValidatedInput
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="any"
+                            value={row.receivedQty}
+                            onChange={(e) => onRowChange(idx, 'receivedQty', parseFloat(e.target.value) || 0)}
+                            className="text-right font-mono w-24 ml-auto"
+                            hasError={isOver || row.receivedQty < 0}
+                          />
+                        </td>
+                        <td className="td-enterprise text-right">
+                          <ValidatedInput
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="any"
+                            value={row.damagedQty}
+                            onChange={(e) => onRowChange(idx, 'damagedQty', parseFloat(e.target.value) || 0)}
+                            className="text-right font-mono w-24 ml-auto"
+                            hasError={isOver || row.damagedQty < 0}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             <div>
-              <label className="label-text block mb-1.5">Notes (optional)</label>
-              <textarea
-                rows={2}
-                placeholder="e.g. vendor remarks, damage reason..."
-                value={receiveNotes}
-                onChange={(e) => onNotesChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-[10px] border border-[#E6E3DE] text-sm text-[#171717] placeholder-[#6B6863]/60 focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414] transition-all bg-white"
-              />
+              <FormField label="Notes (optional)">
+                <ValidatedTextarea
+                  rows={2}
+                  placeholder="e.g. vendor remarks, damage reason..."
+                  value={receiveNotes}
+                  onChange={(e) => onNotesChange(e.target.value)}
+                />
+              </FormField>
             </div>
           </>
         )}
@@ -216,18 +223,20 @@ export const JobReceiveModal: React.FC<JobReceiveModalProps> = ({
     >
       <div className="space-y-5">
         {error && (
-          <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs">{error}</div>
+          <div className="p-2.5 rounded-md bg-[#C2413A]/10 border border-[#C2413A]/25 text-[#C2413A] text-xs">
+            {error}
+          </div>
         )}
 
         <div>
-          <label className="label-text block mb-1.5">Vendor Delivery / Reference Number (optional)</label>
-          <input
-            type="text"
-            value={vendorRef}
-            onChange={(e) => onVendorRefChange(e.target.value)}
-            placeholder="Vendor's own delivery note / reference number"
-            className="input-enterprise w-full"
-          />
+          <FormField label="Vendor Delivery / Reference Number (optional)">
+            <ValidatedInput
+              type="text"
+              value={vendorRef}
+              onChange={(e) => onVendorRefChange(e.target.value)}
+              placeholder="Vendor's own delivery note / reference number"
+            />
+          </FormField>
         </div>
 
         {circuitRows.length > 0 && (
@@ -245,48 +254,53 @@ export const JobReceiveModal: React.FC<JobReceiveModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {circuitRows.map((row, idx) => (
-                    <tr key={row.jobCircuitId}>
-                      <td className="td-enterprise">
-                        <span className="font-mono font-semibold">{row.circuitCode}</span>
-                        <div className="text-[12px] text-slate-500">{row.circuitName}</div>
-                      </td>
-                      <td className="td-enterprise text-right font-mono font-bold text-[#168060]">{row.remaining}</td>
-                      <td className="td-enterprise text-right">
-                        <input
-                          type="number"
-                          min="0"
-                          max={row.remaining}
-                          step="1"
-                          value={row.goodQty}
-                          onChange={(e) => onCircuitRowChange(idx, 'goodQty', parseInt(e.target.value) || 0)}
-                          className="input-enterprise text-right font-mono w-20 ml-auto"
-                        />
-                      </td>
-                      <td className="td-enterprise text-right">
-                        <input
-                          type="number"
-                          min="0"
-                          max={row.remaining}
-                          step="1"
-                          value={row.rejectedQty}
-                          onChange={(e) => onCircuitRowChange(idx, 'rejectedQty', parseInt(e.target.value) || 0)}
-                          className="input-enterprise text-right font-mono w-20 ml-auto"
-                        />
-                      </td>
-                      <td className="td-enterprise">
-                        {row.rejectedQty > 0 && (
-                          <input
-                            type="text"
-                            placeholder="Reason"
-                            value={row.rejectionReason}
-                            onChange={(e) => onCircuitRowChange(idx, 'rejectionReason', e.target.value)}
-                            className="input-enterprise text-xs"
+                  {circuitRows.map((row, idx) => {
+                    const isOver = row.goodQty + row.rejectedQty > row.remaining;
+                    return (
+                      <tr key={row.jobCircuitId}>
+                        <td className="td-enterprise">
+                          <span className="font-mono font-semibold">{row.circuitCode}</span>
+                          <div className="text-[12px] text-slate-500">{row.circuitName}</div>
+                        </td>
+                        <td className="td-enterprise text-right font-mono font-bold text-[#168060]">{row.remaining}</td>
+                        <td className="td-enterprise text-right">
+                          <ValidatedInput
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="1"
+                            value={row.goodQty}
+                            onChange={(e) => onCircuitRowChange(idx, 'goodQty', parseInt(e.target.value) || 0)}
+                            className="text-right font-mono w-20 ml-auto"
+                            hasError={isOver || row.goodQty < 0}
                           />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="td-enterprise text-right">
+                          <ValidatedInput
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="1"
+                            value={row.rejectedQty}
+                            onChange={(e) => onCircuitRowChange(idx, 'rejectedQty', parseInt(e.target.value) || 0)}
+                            className="text-right font-mono w-20 ml-auto"
+                            hasError={isOver || row.rejectedQty < 0}
+                          />
+                        </td>
+                        <td className="td-enterprise">
+                          {row.rejectedQty > 0 && (
+                            <ValidatedInput
+                              type="text"
+                              placeholder="Reason"
+                              value={row.rejectionReason}
+                              onChange={(e) => onCircuitRowChange(idx, 'rejectionReason', e.target.value)}
+                              className="text-xs"
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -308,38 +322,43 @@ export const JobReceiveModal: React.FC<JobReceiveModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {componentRows.map((row, idx) => (
-                    <tr key={`${row.challanId}-${row.componentId}`}>
-                      <td className="td-enterprise">
-                        <span className="font-mono font-semibold">{row.partCode}</span>
-                        <div className="text-[12px] text-slate-500">{row.name}</div>
-                      </td>
-                      <td className="td-enterprise font-mono text-[12px] text-slate-500">{row.challanNumber}</td>
-                      <td className="td-enterprise text-right font-mono font-bold text-[#168060]">{row.remaining}</td>
-                      <td className="td-enterprise text-right">
-                        <input
-                          type="number"
-                          min="0"
-                          max={row.remaining}
-                          step="any"
-                          value={row.receivedQty}
-                          onChange={(e) => onComponentRowChange(idx, 'receivedQty', parseFloat(e.target.value) || 0)}
-                          className="input-enterprise text-right font-mono w-24 ml-auto"
-                        />
-                      </td>
-                      <td className="td-enterprise text-right">
-                        <input
-                          type="number"
-                          min="0"
-                          max={row.remaining}
-                          step="any"
-                          value={row.damagedQty}
-                          onChange={(e) => onComponentRowChange(idx, 'damagedQty', parseFloat(e.target.value) || 0)}
-                          className="input-enterprise text-right font-mono w-24 ml-auto"
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                  {componentRows.map((row, idx) => {
+                    const isOver = row.receivedQty + row.damagedQty > row.remaining;
+                    return (
+                      <tr key={`${row.challanId}-${row.componentId}`}>
+                        <td className="td-enterprise">
+                          <span className="font-mono font-semibold">{row.partCode}</span>
+                          <div className="text-[12px] text-slate-500">{row.name}</div>
+                        </td>
+                        <td className="td-enterprise font-mono text-[12px] text-slate-500">{row.challanNumber}</td>
+                        <td className="td-enterprise text-right font-mono font-bold text-[#168060]">{row.remaining}</td>
+                        <td className="td-enterprise text-right">
+                          <ValidatedInput
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="any"
+                            value={row.receivedQty}
+                            onChange={(e) => onComponentRowChange(idx, 'receivedQty', parseFloat(e.target.value) || 0)}
+                            className="text-right font-mono w-24 ml-auto"
+                            hasError={isOver || row.receivedQty < 0}
+                          />
+                        </td>
+                        <td className="td-enterprise text-right">
+                          <ValidatedInput
+                            type="number"
+                            min="0"
+                            max={row.remaining}
+                            step="any"
+                            value={row.damagedQty}
+                            onChange={(e) => onComponentRowChange(idx, 'damagedQty', parseFloat(e.target.value) || 0)}
+                            className="text-right font-mono w-24 ml-auto"
+                            hasError={isOver || row.damagedQty < 0}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -354,14 +373,14 @@ export const JobReceiveModal: React.FC<JobReceiveModalProps> = ({
         )}
 
         <div>
-          <label className="label-text block mb-1.5">Remarks (optional)</label>
-          <textarea
-            rows={2}
-            placeholder="Any notes for this receipt..."
-            value={remarks}
-            onChange={(e) => onRemarksChange(e.target.value)}
-            className="w-full px-3 py-2 rounded-[10px] border border-[#E6E3DE] text-sm text-[#171717] placeholder-[#6B6863]/60 focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414] transition-all bg-white"
-          />
+          <FormField label="Remarks (optional)">
+            <ValidatedTextarea
+              rows={2}
+              placeholder="Any notes for this receipt..."
+              value={remarks}
+              onChange={(e) => onRemarksChange(e.target.value)}
+            />
+          </FormField>
         </div>
       </div>
     </Modal>

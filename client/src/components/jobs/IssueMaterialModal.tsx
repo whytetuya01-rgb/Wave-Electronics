@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal } from '../ui/Modal';
 import { ButtonSpinner } from '../ui/Loading';
+import { ValidatedInput } from '../ui/ValidatedInput';
 import { PackageCheck } from 'lucide-react';
 import { IssueRow, JobListItem } from './jobTypes';
 
@@ -15,9 +16,6 @@ interface IssueMaterialModalProps {
   error: string;
 }
 
-// Material Issue Modal - moved verbatim out of pages/Jobs.tsx during the
-// stabilization refactor. Jobs.tsx still owns all the underlying state and
-// handlers; this component is purely presentational.
 export const IssueMaterialModal: React.FC<IssueMaterialModalProps> = ({
   isOpen,
   onClose,
@@ -59,7 +57,7 @@ export const IssueMaterialModal: React.FC<IssueMaterialModalProps> = ({
     >
       <div className="space-y-4">
         {error && (
-          <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs">
+          <div className="p-2.5 rounded-md bg-[#C2413A]/10 border border-[#C2413A]/25 text-[#C2413A] text-xs">
             {error}
           </div>
         )}
@@ -90,14 +88,15 @@ export const IssueMaterialModal: React.FC<IssueMaterialModalProps> = ({
                       {row.remaining}
                     </td>
                     <td className="td-enterprise text-right">
-                      <input
+                      <ValidatedInput
                         type="number"
                         min="0"
                         max={row.remaining}
                         step="any"
                         value={row.qtyToIssue}
                         onChange={(e) => onQtyChange(idx, parseFloat(e.target.value) || 0)}
-                        className="input-enterprise text-right font-mono w-28 ml-auto"
+                        className="text-right font-mono w-28 ml-auto"
+                        hasError={row.qtyToIssue > row.remaining || row.qtyToIssue < 0}
                       />
                     </td>
                   </tr>

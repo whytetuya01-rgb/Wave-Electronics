@@ -5,6 +5,12 @@ import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
+import { SearchableSelect } from '../components/ui/SearchableSelect';
+import { FormField, FormError } from '../components/ui/FormField';
+import { ValidatedInput } from '../components/ui/ValidatedInput';
+import { toast } from '../utils/toast';
+import { handleApiError } from '../utils/apiErrors';
+import { stockInwardSchema } from '../utils/validationSchemas';
 import {
   PackageCheck,
   Plus,
@@ -95,8 +101,7 @@ export const StockInward: React.FC = () => {
     },
   ]);
 
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -119,7 +124,7 @@ export const StockInward: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.response?.data?.message || 'Failed to fetch inward history');
+      toast.error(err.response?.data?.message || 'Failed to fetch inward history');
     } finally {
       setLoading(false);
     }
@@ -138,6 +143,12 @@ export const StockInward: React.FC = () => {
     const comp = componentsList.find((c) => c._id === componentId);
     if (!comp) return;
 
+    const isDuplicate = items.some((it, i) => i !== index && it.componentId === componentId);
+    if (isDuplicate) {
+      toast.warning(`Component '${comp.partCode}' is already added to this inward list.`);
+      return;
+    }
+
     const newItems = [...items];
     const qty = newItems[index].qty || 1;
     const rate = comp.ratePerUnit || 0;
@@ -152,11 +163,18 @@ export const StockInward: React.FC = () => {
       totalAmount: Number((qty * rate).toFixed(2)),
     };
     setItems(newItems);
+
+    // Clear error for this row
+    if (fieldErrors[`items.${index}.componentId`]) {
+      const newErrors = { ...fieldErrors };
+      delete newErrors[`items.${index}.componentId`];
+      setFieldErrors(newErrors);
+    }
   };
 
   const handleItemQtyChange = (index: number, qty: number) => {
     const newItems = [...items];
-    const validQty = Math.max(1, qty);
+    const validQty = Math.max(0, qty);
     const rate = newItems[index].unitRate || 0;
     newItems[index].qty = validQty;
     newItems[index].totalAmount = Number((validQty * rate).toFixed(2));
@@ -190,7 +208,7 @@ export const StockInward: React.FC = () => {
 
   const handleRemoveRow = (index: number) => {
     if (items.length <= 1) {
-      setErrorMsg('Stock inward must contain at least one line item.');
+      toast.warning('Stock inward must contain at least one line item.');
       return;
     }
     setItems(items.filter((_, i) => i !== index));
@@ -205,6 +223,7 @@ export const StockInward: React.FC = () => {
     setBillNumber('');
     setBillDate('');
     setNotes('');
+    setFieldErrors({});
     setItems([
       {
         componentId: '',
@@ -217,22 +236,36 @@ export const StockInward: React.FC = () => {
         remarks: '',
       },
     ]);
-    setErrorMsg('');
     setShowAddModal(true);
   };
 
   const handleSubmitInward = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg('');
+    setFieldErrors({});
 
-    if (!supplierName.trim()) {
-      setErrorMsg('Please specify the Supplier / Source name.');
-      return;
-    }
+    const validationResult = stockInwardSchema.safeParse({
+      supplierName: supplierName.trim(),
+      billNumber: billNumber.trim() || undefined,
+      billDate: billDate || undefined,
+      inwardDate,
+      notes: notes.trim() || undefined,
+      items: items.map((it) => ({
+        componentId: it.componentId,
+        qty: Number(it.qty),
+        unitRate: Number(it.unitRate),
+        unitShortCode: it.unitShortCode,
+        remarks: it.remarks,
+      })),
+    });
 
-    const invalidRow = items.find((it) => !it.componentId);
-    if (invalidRow) {
-      setErrorMsg('Please select a component for every row in the inward item list.');
+    if (!validationResult.success) {
+      const errs: Record<string, string> = {};
+      validationResult.error.issues.forEach((issue) => {
+        const path = issue.path.join('.');
+        errs[path] = issue.message;
+      });
+      setFieldErrors(errs);
+      toast.error(validationResult.error.issues[0]?.message || 'Please fix the validation errors.');
       return;
     }
 
@@ -240,14 +273,14 @@ export const StockInward: React.FC = () => {
     try {
       const res = await api.post('/stock-inward', {
         inwardDate,
-        supplierName,
-        billNumber,
+        supplierName: supplierName.trim(),
+        billNumber: billNumber.trim() || undefined,
         billDate: billDate || undefined,
-        notes,
+        notes: notes.trim() || undefined,
         items,
       });
 
-      setSuccessMsg(`Goods Inward Note '${res.data.data.inwardNumber}' created successfully! Stock updated.`);
+      toast.success(`Goods Inward Note '${res.data.data.inwardNumber}' created successfully! Stock updated.`);
       setShowAddModal(false);
       fetchInwards();
       fetchComponents();
@@ -256,7 +289,7 @@ export const StockInward: React.FC = () => {
       setSelectedInward(res.data.data);
       setShowSlipModal(true);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to submit stock inward');
+      handleApiError(err, undefined, 'Failed to submit stock inward');
     } finally {
       setSubmitting(false);
     }
@@ -345,30 +378,7 @@ export const StockInward: React.FC = () => {
         />
       </div>
 
-      {/* Notifications */}
-      {errorMsg && (
-        <div className="p-3.5 bg-[#C2413A]/10 border border-[#C2413A]/25 rounded-[10px] text-sm text-[#C2413A] flex items-center justify-between animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-[#C2413A] shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-          <button onClick={() => setErrorMsg('')} className="text-[#C2413A]/70 hover:text-[#C2413A] p-0.5">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
-      {successMsg && (
-        <div className="p-3.5 bg-[#168060]/10 border border-[#168060]/25 rounded-[10px] text-sm text-[#168060] flex items-center justify-between animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-[#168060] shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-          <button onClick={() => setSuccessMsg('')} className="text-[#168060]/70 hover:text-[#168060] p-0.5">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* Filters Toolbar */}
       <div className="enterprise-card p-3 flex flex-col md:flex-row items-center justify-between gap-3">
@@ -544,62 +554,80 @@ export const StockInward: React.FC = () => {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-[#F7F6F3]/60 p-4.5 rounded-xl border border-[#E6E3DE]">
             <div>
-              <label className="label-text block mb-1.5">
-                Inward Date <span className="text-[#C2413A]">*</span>
-              </label>
-              <input
-                type="date"
-                required
-                value={inwardDate}
-                onChange={(e) => setInwardDate(e.target.value)}
-                className="input-enterprise"
-              />
+              <FormField label="Inward Date" required error={fieldErrors['inwardDate']}>
+                <ValidatedInput
+                  type="date"
+                  required
+                  value={inwardDate}
+                  onChange={(e) => {
+                    setInwardDate(e.target.value);
+                    if (fieldErrors['inwardDate']) {
+                      const errs = { ...fieldErrors };
+                      delete errs['inwardDate'];
+                      setFieldErrors(errs);
+                    }
+                  }}
+                  hasError={!!fieldErrors['inwardDate']}
+                />
+              </FormField>
             </div>
 
             <div className="sm:col-span-2">
-              <label className="label-text block mb-1.5">
-                Supplier / Source Name <span className="text-[#C2413A]">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Mouser Electronics / DigiKey / Arrow"
-                value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
-                className="input-enterprise"
-              />
+              <FormField label="Supplier / Source Name" required error={fieldErrors['supplierName']}>
+                <ValidatedInput
+                  type="text"
+                  required
+                  placeholder="e.g. Mouser Electronics / DigiKey / Arrow"
+                  value={supplierName}
+                  onChange={(e) => {
+                    setSupplierName(e.target.value);
+                    if (fieldErrors['supplierName']) {
+                      const errs = { ...fieldErrors };
+                      delete errs['supplierName'];
+                      setFieldErrors(errs);
+                    }
+                  }}
+                  hasError={!!fieldErrors['supplierName']}
+                />
+              </FormField>
             </div>
 
             <div>
-              <label className="label-text block mb-1.5">Bill / Invoice Number</label>
-              <input
-                type="text"
-                placeholder="e.g. INV-2026-9041"
-                value={billNumber}
-                onChange={(e) => setBillNumber(e.target.value)}
-                className="input-enterprise font-mono uppercase"
-              />
+              <FormField label="Bill / Invoice Number" error={fieldErrors['billNumber']}>
+                <ValidatedInput
+                  type="text"
+                  placeholder="e.g. INV-2026-9041"
+                  value={billNumber}
+                  onChange={(e) => setBillNumber(e.target.value)}
+                  className="font-mono uppercase"
+                  hasError={!!fieldErrors['billNumber']}
+                />
+              </FormField>
             </div>
 
             <div className="sm:col-span-4">
-              <label className="label-text block mb-1.5">Notes / Procurement Remarks</label>
-              <input
-                type="text"
-                placeholder="e.g. Lot inspection verified, tape packaging intact"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="input-enterprise"
-              />
+              <FormField label="Notes / Procurement Remarks" error={fieldErrors['notes']}>
+                <ValidatedInput
+                  type="text"
+                  placeholder="e.g. Lot inspection verified, tape packaging intact"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  hasError={!!fieldErrors['notes']}
+                />
+              </FormField>
             </div>
           </div>
 
           {/* Line Items Table */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-[#171717] flex items-center gap-1.5">
-                <Layers className="w-4 h-4 text-[#807365]" />
-                Inward Component Line Items
-              </h4>
+              <div>
+                <h4 className="text-sm font-semibold text-[#171717] flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-[#807365]" />
+                  Inward Component Line Items
+                </h4>
+                {fieldErrors['items'] && <FormError message={fieldErrors['items']} className="mt-1" />}
+              </div>
               <button
                 type="button"
                 onClick={handleAddRow}
@@ -610,7 +638,7 @@ export const StockInward: React.FC = () => {
               </button>
             </div>
 
-            <div className="border border-[#E6E3DE] rounded-xl overflow-hidden shadow-xs">
+            <div className="border border-[#E6E3DE] rounded-xl overflow-visible shadow-xs">
               <table className="w-full text-left text-sm">
                 <thead className="bg-[#F7F6F3] text-[11px] font-semibold uppercase text-[#6B6863] border-b border-[#E6E3DE]">
                   <tr>
@@ -622,62 +650,76 @@ export const StockInward: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E6E3DE]/60">
-                  {items.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-[#FAF9F7]">
-                      <td className="py-2 px-3">
-                        <select
-                          required
-                          value={row.componentId}
-                          onChange={(e) => handleComponentSelect(idx, e.target.value)}
-                          className="select-enterprise text-xs"
-                        >
-                          <option value="">-- Choose Component Part --</option>
-                          {componentsList.map((c) => (
-                            <option key={c._id} value={c._id}>
-                              {c.partCode} — {c.name} (Stock: {c.inStoreStock})
-                            </option>
-                          ))}
-                        </select>
-                        {row.name && (
-                          <div className="text-[11px] text-[#A69B8D] mt-0.5 truncate">{row.name}</div>
-                        )}
-                      </td>
-                      <td className="py-2 px-3">
-                        <input
-                          type="number"
-                          required
-                          min="1"
-                          value={row.qty}
-                          onChange={(e) => handleItemQtyChange(idx, parseInt(e.target.value) || 0)}
-                          className="input-enterprise text-right font-mono"
-                        />
-                      </td>
-                      <td className="py-2 px-3">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          required
-                          value={row.unitRate}
-                          onChange={(e) => handleItemRateChange(idx, parseFloat(e.target.value) || 0)}
-                          className="input-enterprise text-right font-mono"
-                        />
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-[#171717]">
-                        ₹{row.totalAmount.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRow(idx)}
-                          className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
-                          title="Delete row"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map((row, idx) => {
+                    const compOptions = componentsList.map((c) => ({
+                      value: c._id,
+                      label: `${c.partCode} — ${c.name}`,
+                      description: `Stock: ${c.inStoreStock} ${c.unitId?.shortCode || 'NOS'}`,
+                      badge: c.package,
+                      disabled: items.some((item, i) => i !== idx && item.componentId === c._id),
+                    }));
+
+                    return (
+                      <tr key={idx} className="hover:bg-[#FAF9F7]">
+                        <td className="py-2 px-3">
+                          <SearchableSelect
+                            options={compOptions}
+                            value={row.componentId}
+                            onChange={(val) => handleComponentSelect(idx, val)}
+                            placeholder="-- Choose Component Part --"
+                            searchPlaceholder="Search part code or name..."
+                            hasError={!!fieldErrors[`items.${idx}.componentId`]}
+                          />
+                          {fieldErrors[`items.${idx}.componentId`] && (
+                            <FormError message={fieldErrors[`items.${idx}.componentId`]} className="mt-1" />
+                          )}
+                          {row.name && (
+                            <div className="text-[11px] text-[#A69B8D] mt-1 truncate pl-1">{row.name}</div>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 align-top">
+                          <ValidatedInput
+                            type="number"
+                            min="1"
+                            value={row.qty === 0 ? '' : row.qty}
+                            onChange={(e) => handleItemQtyChange(idx, parseInt(e.target.value) || 0)}
+                            className="text-right font-mono"
+                            hasError={!!fieldErrors[`items.${idx}.qty`]}
+                          />
+                          {fieldErrors[`items.${idx}.qty`] && (
+                            <FormError message={fieldErrors[`items.${idx}.qty`]} className="mt-1" />
+                          )}
+                        </td>
+                        <td className="py-2 px-3 align-top">
+                          <ValidatedInput
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={row.unitRate}
+                            onChange={(e) => handleItemRateChange(idx, parseFloat(e.target.value) || 0)}
+                            className="text-right font-mono"
+                            hasError={!!fieldErrors[`items.${idx}.unitRate`]}
+                          />
+                          {fieldErrors[`items.${idx}.unitRate`] && (
+                            <FormError message={fieldErrors[`items.${idx}.unitRate`]} className="mt-1" />
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-[#171717] pt-4">
+                          ₹{row.totalAmount.toFixed(2)}
+                        </td>
+                        <td className="py-2 px-3 text-center pt-3">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRow(idx)}
+                            className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
+                            title="Delete row"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot className="bg-[#F7F6F3] border-t border-[#E6E3DE] font-semibold text-xs">
                   <tr>

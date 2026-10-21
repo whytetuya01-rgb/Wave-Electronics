@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { StatCard } from '../components/ui/StatCard';
@@ -6,6 +8,11 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Badge } from '../components/ui/Badge';
 import { Modal, ConfirmModal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
+import { FormField } from '../components/ui/FormField';
+import { ValidatedInput, ValidatedTextarea } from '../components/ui/ValidatedInput';
+import { toast } from '../utils/toast';
+import { handleApiError } from '../utils/apiErrors';
+import { vendorSchema, VendorFormData } from '../utils/validationSchemas';
 import {
   Truck,
   Plus,
@@ -55,9 +62,8 @@ export const Vendors: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -69,19 +75,24 @@ export const Vendors: React.FC = () => {
   const [vendorToDelete, setVendorToDelete] = useState<VendorItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Form states
-  const [formData, setFormData] = useState({
-    name: '',
-    contactPerson: '',
-    phone: '',
-    email: '',
-    gstNumber: '',
-    address: '',
-    city: '',
-    state: 'Maharashtra',
-    defaultJobWorkRate: 0,
-    circuitsCanAssemble: '',
-    remarks: '',
+  // React Hook Form for Vendor
+  const form = useForm<VendorFormData>({
+    resolver: zodResolver(vendorSchema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      name: '',
+      contactPerson: '',
+      phone: '',
+      email: '',
+      gstNumber: '',
+      address: '',
+      city: '',
+      state: 'Maharashtra',
+      defaultJobWorkRate: 0,
+      circuitsCanAssemble: '',
+      remarks: '',
+    },
   });
 
   useEffect(() => {
@@ -99,14 +110,14 @@ export const Vendors: React.FC = () => {
       setVendors(res.data.data);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.response?.data?.message || 'Failed to fetch vendors');
+      toast.error(err.response?.data?.message || 'Failed to fetch vendors');
     } finally {
       setLoading(false);
     }
   };
 
   const resetForm = () => {
-    setFormData({
+    form.reset({
       name: '',
       contactPerson: '',
       phone: '',
@@ -119,18 +130,17 @@ export const Vendors: React.FC = () => {
       circuitsCanAssemble: '',
       remarks: '',
     });
+    setFormError('');
   };
 
   const handleOpenAdd = () => {
     resetForm();
-    setErrorMsg('');
-    setSuccessMsg('');
     setShowAddModal(true);
   };
 
   const handleOpenEdit = (v: VendorItem) => {
     setSelectedVendor(v);
-    setFormData({
+    form.reset({
       name: v.name,
       contactPerson: v.contactPerson,
       phone: v.phone,
@@ -143,8 +153,7 @@ export const Vendors: React.FC = () => {
       circuitsCanAssemble: (v.circuitsCanAssemble || []).join(', '),
       remarks: v.remarks || '',
     });
-    setErrorMsg('');
-    setSuccessMsg('');
+    setFormError('');
     setShowEditModal(true);
   };
 
@@ -162,53 +171,53 @@ export const Vendors: React.FC = () => {
     }
   };
 
-  const handleCreateVendor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
+  const handleCreateVendor = async (data: VendorFormData) => {
+    setFormError('');
     setIsSaving(true);
     try {
-      const circuitsArray = formData.circuitsCanAssemble
+      const circuitsArray = (data.circuitsCanAssemble || '')
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
 
       await api.post('/vendors', {
-        ...formData,
+        ...data,
         circuitsCanAssemble: circuitsArray,
       });
 
-      setSuccessMsg(`Vendor '${formData.name}' created successfully`);
+      toast.success(`Vendor '${data.name}' created successfully.`);
       setShowAddModal(false);
       resetForm();
       fetchVendors();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to create vendor');
+      const msg = handleApiError(err, form.setError, 'Failed to create vendor');
+      setFormError(msg);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleUpdateVendor = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdateVendor = async (data: VendorFormData) => {
     if (!selectedVendor) return;
-    setErrorMsg('');
+    setFormError('');
     setIsSaving(true);
     try {
-      const circuitsArray = formData.circuitsCanAssemble
+      const circuitsArray = (data.circuitsCanAssemble || '')
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
 
       await api.put(`/vendors/${selectedVendor._id}`, {
-        ...formData,
+        ...data,
         circuitsCanAssemble: circuitsArray,
       });
 
-      setSuccessMsg(`Vendor '${formData.name}' updated successfully`);
+      toast.success(`Vendor '${data.name}' updated successfully.`);
       setShowEditModal(false);
       fetchVendors();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to update vendor');
+      const msg = handleApiError(err, form.setError, 'Failed to update vendor');
+      setFormError(msg);
     } finally {
       setIsSaving(false);
     }
@@ -217,29 +226,27 @@ export const Vendors: React.FC = () => {
   const handleToggleStatus = async (v: VendorItem) => {
     try {
       await api.patch(`/vendors/${v._id}/toggle-status`);
-      setSuccessMsg(`Vendor '${v.name}' ${v.isActive ? 'deactivated' : 'activated'}`);
+      toast.success(`Vendor '${v.name}' ${v.isActive ? 'deactivated' : 'activated'} successfully.`);
       fetchVendors();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to change vendor status');
+      handleApiError(err, undefined, 'Failed to change vendor status');
     }
   };
 
   const handleDeleteVendor = (v: VendorItem) => {
     setVendorToDelete(v);
-    setErrorMsg('');
   };
 
   const executeDeleteVendor = async () => {
     if (!vendorToDelete) return;
     setDeleteLoading(true);
-    setErrorMsg('');
     try {
       await api.delete(`/vendors/${vendorToDelete._id}`);
-      setSuccessMsg(`Vendor '${vendorToDelete.name}' deleted successfully`);
+      toast.success(`Vendor '${vendorToDelete.name}' deleted successfully.`);
       setVendorToDelete(null);
       fetchVendors();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to delete vendor');
+      handleApiError(err, undefined, 'Failed to delete vendor');
     } finally {
       setDeleteLoading(false);
     }
@@ -353,30 +360,7 @@ export const Vendors: React.FC = () => {
         />
       </div>
 
-      {/* Notifications */}
-      {errorMsg && (
-        <div className="p-3.5 bg-[#C2413A]/10 border border-[#C2413A]/25 rounded-[10px] text-sm text-[#C2413A] flex items-center justify-between animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-[#C2413A] shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-          <button onClick={() => setErrorMsg('')} className="text-[#C2413A]/70 hover:text-[#C2413A] p-0.5">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
-      {successMsg && (
-        <div className="p-3.5 bg-[#168060]/10 border border-[#168060]/25 rounded-[10px] text-sm text-[#168060] flex items-center justify-between animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-[#168060] shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-          <button onClick={() => setSuccessMsg('')} className="text-[#168060]/70 hover:text-[#168060] p-0.5">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* Table Toolbar: Search & Segmented Filter Control */}
       <div className="enterprise-card p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -614,7 +598,7 @@ export const Vendors: React.FC = () => {
         icon={<Truck className="w-5 h-5 text-[#807365]" />}
         title={showAddModal ? 'Add Assembler Vendor' : `Edit Assembler: ${selectedVendor?.name}`}
         subtitle="Configure company profile, contact details, tax ID, and standard job-work assembly rate."
-        onSubmit={showAddModal ? handleCreateVendor : handleUpdateVendor}
+        onSubmit={form.handleSubmit(showAddModal ? handleCreateVendor : handleUpdateVendor)}
         footer={
           <>
             <button
@@ -629,161 +613,198 @@ export const Vendors: React.FC = () => {
             </button>
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || form.formState.isSubmitting}
               className="btn-primary"
             >
-              {isSaving && <ButtonSpinner />}
-              <span>{isSaving ? 'Saving...' : (showAddModal ? 'Save Assembler' : 'Save Changes')}</span>
+              {(isSaving || form.formState.isSubmitting) && <ButtonSpinner />}
+              <span>
+                {isSaving || form.formState.isSubmitting
+                  ? 'Saving...'
+                  : showAddModal
+                  ? 'Save Assembler'
+                  : 'Save Changes'}
+              </span>
             </button>
           </>
         }
       >
         <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="label-text block mb-1.5">
-                    Company / Vendor Name <span className="text-[#C2413A]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Apex EMS Solutions Pvt Ltd"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input-enterprise"
-                  />
-                </div>
+          {formError && (
+            <div role="alert" className="p-3 rounded-lg bg-[#C2413A]/10 border border-[#C2413A]/20 text-[#C2413A] text-xs">
+              {formError}
+            </div>
+          )}
 
-                <div>
-                  <label className="label-text block mb-1.5">
-                    Contact Person <span className="text-[#C2413A]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Sunil Sharma"
-                    value={formData.contactPerson}
-                    onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                    className="input-enterprise"
-                  />
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <FormField
+                label="Company / Vendor Name"
+                required
+                error={form.formState.errors.name?.message}
+                id="vendorName"
+              >
+                <ValidatedInput
+                  id="vendorName"
+                  placeholder="e.g. Apex EMS Solutions Pvt Ltd"
+                  hasError={Boolean(form.formState.errors.name)}
+                  {...form.register('name')}
+                />
+              </FormField>
+            </div>
 
-                <div>
-                  <label className="label-text block mb-1.5">
-                    Phone Number <span className="text-[#C2413A]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. +91 98220 12345"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="input-enterprise font-mono"
-                  />
-                </div>
+            <FormField
+              label="Contact Person"
+              required
+              error={form.formState.errors.contactPerson?.message}
+              id="contactPerson"
+            >
+              <ValidatedInput
+                id="contactPerson"
+                placeholder="e.g. Sunil Sharma"
+                hasError={Boolean(form.formState.errors.contactPerson)}
+                {...form.register('contactPerson')}
+              />
+            </FormField>
 
-                <div>
-                  <label className="label-text block mb-1.5">Email Address</label>
-                  <input
-                    type="email"
-                    placeholder="e.g. contact@apexems.in"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="input-enterprise"
-                  />
-                </div>
+            <FormField
+              label="Phone Number"
+              required
+              error={form.formState.errors.phone?.message}
+              id="phone"
+            >
+              <ValidatedInput
+                id="phone"
+                placeholder="e.g. +91 98220 12345"
+                className="font-mono"
+                hasError={Boolean(form.formState.errors.phone)}
+                {...form.register('phone')}
+              />
+            </FormField>
 
-                <div>
-                  <label className="label-text block mb-1.5">GSTIN Number</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 27AABCA1234F1Z5"
-                    value={formData.gstNumber}
-                    onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value.toUpperCase() })}
-                    className="input-enterprise font-mono uppercase"
-                  />
-                </div>
+            <FormField
+              label="Email Address"
+              optional
+              error={form.formState.errors.email?.message}
+              id="email"
+            >
+              <ValidatedInput
+                id="email"
+                type="email"
+                placeholder="e.g. contact@apexems.in"
+                hasError={Boolean(form.formState.errors.email)}
+                {...form.register('email')}
+              />
+            </FormField>
 
-                <div>
-                  <label className="label-text block mb-1.5">
-                    City <span className="text-[#C2413A]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Pune"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="input-enterprise"
-                  />
-                </div>
+            <FormField
+              label="GSTIN Number"
+              optional
+              error={form.formState.errors.gstNumber?.message}
+              id="gstNumber"
+            >
+              <ValidatedInput
+                id="gstNumber"
+                placeholder="e.g. 27AABCA1234F1Z5"
+                className="font-mono uppercase"
+                hasError={Boolean(form.formState.errors.gstNumber)}
+                {...form.register('gstNumber')}
+              />
+            </FormField>
 
-                <div>
-                  <label className="label-text block mb-1.5">State</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Maharashtra"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="input-enterprise"
-                  />
-                </div>
+            <FormField
+              label="City"
+              required
+              error={form.formState.errors.city?.message}
+              id="city"
+            >
+              <ValidatedInput
+                id="city"
+                placeholder="e.g. Pune"
+                hasError={Boolean(form.formState.errors.city)}
+                {...form.register('city')}
+              />
+            </FormField>
 
-                <div className="sm:col-span-2">
-                  <label className="label-text block mb-1.5">Address</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Plot 42, Bhosari MIDC Industrial Area"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="input-enterprise"
-                  />
-                </div>
+            <FormField
+              label="State"
+              optional
+              error={form.formState.errors.state?.message}
+              id="state"
+            >
+              <ValidatedInput
+                id="state"
+                placeholder="e.g. Maharashtra"
+                hasError={Boolean(form.formState.errors.state)}
+                {...form.register('state')}
+              />
+            </FormField>
 
-                <div>
-                  <label className="label-text block mb-1.5">
-                    Default Job-Work Rate (₹ per unit)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-xs text-[#807365] font-bold">₹</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={formData.defaultJobWorkRate}
-                      onChange={(e) =>
-                        setFormData({ ...formData, defaultJobWorkRate: parseFloat(e.target.value) || 0 })
-                      }
-                      className="input-enterprise !pl-7 font-mono"
-                    />
-                  </div>
-                </div>
+            <div className="sm:col-span-2">
+              <FormField
+                label="Address"
+                optional
+                error={form.formState.errors.address?.message}
+                id="address"
+              >
+                <ValidatedInput
+                  id="address"
+                  placeholder="e.g. Plot 42, Bhosari MIDC Industrial Area"
+                  hasError={Boolean(form.formState.errors.address)}
+                  {...form.register('address')}
+                />
+              </FormField>
+            </div>
 
-                <div>
-                  <label className="label-text block mb-1.5">
-                    Circuits Handled (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. PWM Motor Controller, LED Driver"
-                    value={formData.circuitsCanAssemble}
-                    onChange={(e) => setFormData({ ...formData, circuitsCanAssemble: e.target.value })}
-                    className="input-enterprise"
-                  />
-                </div>
+            <FormField
+              label="Default Job-Work Rate (₹ per unit)"
+              optional
+              error={form.formState.errors.defaultJobWorkRate?.message}
+              id="defaultJobWorkRate"
+            >
+              <ValidatedInput
+                id="defaultJobWorkRate"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                leftIcon={<span className="text-xs font-bold font-mono">₹</span>}
+                className="font-mono"
+                hasError={Boolean(form.formState.errors.defaultJobWorkRate)}
+                {...form.register('defaultJobWorkRate')}
+              />
+            </FormField>
 
-                <div className="sm:col-span-2">
-                  <label className="label-text block mb-1.5">Remarks & Tooling Capabilities</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Specialized capabilities, machine tooling, lead times..."
-                    value={formData.remarks}
-                    onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                    className="w-full px-3 py-2 rounded-[9px] border border-[#E6E3DE] text-sm focus:outline-none focus:ring-2 focus:ring-[#807365]/20 focus:border-[#807365] transition-all"
-                  />
-                </div>
-              </div>
+            <FormField
+              label="Circuits Handled (comma-separated)"
+              optional
+              error={form.formState.errors.circuitsCanAssemble?.message}
+              id="circuitsCanAssemble"
+            >
+              <ValidatedInput
+                id="circuitsCanAssemble"
+                placeholder="e.g. PWM Motor Controller, LED Driver"
+                hasError={Boolean(form.formState.errors.circuitsCanAssemble)}
+                {...form.register('circuitsCanAssemble')}
+              />
+            </FormField>
+
+            <div className="sm:col-span-2">
+              <FormField
+                label="Remarks & Tooling Capabilities"
+                optional
+                error={form.formState.errors.remarks?.message}
+                id="remarks"
+              >
+                <ValidatedTextarea
+                  id="remarks"
+                  rows={2}
+                  placeholder="Specialized capabilities, machine tooling, lead times..."
+                  hasError={Boolean(form.formState.errors.remarks)}
+                  {...form.register('remarks')}
+                />
+              </FormField>
+            </div>
+          </div>
         </div>
       </Modal>
 

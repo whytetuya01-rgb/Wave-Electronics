@@ -4,6 +4,7 @@ import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { TableSkeleton } from '../components/ui/Loading';
+import { toast } from '../utils/toast';
 import {
   Boxes,
   Search,
@@ -135,7 +136,11 @@ export const FinishedGoods: React.FC = () => {
 
   // Export CSV
   const handleExportCSV = () => {
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      toast.warning('No finished goods records to export');
+      return;
+    }
+    toast.info('Export started...');
     const headers = [
       'Circuit Code',
       'Circuit Name',
@@ -166,6 +171,7 @@ export const FinishedGoods: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success('Finished goods exported to CSV successfully');
   };
 
   return (

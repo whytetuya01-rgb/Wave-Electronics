@@ -6,6 +6,10 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Badge } from '../components/ui/Badge';
 import { ConfirmModal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
+import { SimpleSelect } from '../components/ui/Select';
+import { toast } from '../utils/toast';
+import { handleApiError } from '../utils/apiErrors';
+import { jobFormSchema } from '../utils/validationSchemas';
 import { JobFormModal } from '../components/jobs/JobFormModal';
 import { JobDetailsModal } from '../components/jobs/JobDetailsModal';
 import { IssueMaterialModal } from '../components/jobs/IssueMaterialModal';
@@ -54,9 +58,8 @@ export const Jobs: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
   const [actionJobId, setActionJobId] = useState<string | null>(null);
+  const [jobFieldErrors, setJobFieldErrors] = useState<Record<string, string>>({});
 
   // Confirm dialog states
   const [confirmApproveJob, setConfirmApproveJob] = useState<JobListItem | null>(null);
@@ -155,7 +158,7 @@ export const Jobs: React.FC = () => {
       setJobs(res.data.data);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.response?.data?.message || 'Failed to fetch jobs');
+      toast.error(err.response?.data?.message || 'Failed to fetch jobs');
     } finally {
       setLoading(false);
     }
@@ -231,6 +234,7 @@ export const Jobs: React.FC = () => {
     setFormData({ vendorId: '', targetDate: '', remarks: '' });
     setJobCircuitRows([{ circuitId: '', orderedQty: 1 }]);
     setFormError('');
+    setJobFieldErrors({});
   };
 
   const handleOpenAddModal = () => {
@@ -243,6 +247,7 @@ export const Jobs: React.FC = () => {
     setFormMode('edit');
     setSelectedJob(job);
     setFormError('');
+    setJobFieldErrors({});
     try {
       const res = await api.get(`/jobs/${job._id}`);
       const j = res.data.data;
@@ -259,7 +264,7 @@ export const Jobs: React.FC = () => {
       await Promise.all(rows.map((r: any) => fetchCircuitDetail(r.circuitId)));
       setShowFormModal(true);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to load job for editing');
+      toast.error(err.response?.data?.message || 'Failed to load job for editing');
     }
   };
 
@@ -326,7 +331,6 @@ export const Jobs: React.FC = () => {
   // carry the token and the server would reject it with 401.
   const handleDownloadPdf = async (url: string, fallbackFilename: string, key: string) => {
     setDownloadingPdfKey(key);
-    setErrorMsg('');
     try {
       const res = await api.get(url, { responseType: 'blob' });
       const disposition: string | undefined = res.headers['content-disposition'];
@@ -341,6 +345,7 @@ export const Jobs: React.FC = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
+      toast.success(`${filename} downloaded successfully!`);
     } catch (err: any) {
       let message = 'Failed to download PDF';
       if (err.response?.data instanceof Blob) {
@@ -353,7 +358,7 @@ export const Jobs: React.FC = () => {
       } else {
         message = err.response?.data?.message || message;
       }
-      setErrorMsg(message);
+      toast.error(message);
     } finally {
       setDownloadingPdfKey(null);
     }
@@ -367,24 +372,39 @@ export const Jobs: React.FC = () => {
 
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.vendorId) {
-      setFormError('Please select a vendor.');
-      return;
-    }
-    const validRows = jobCircuitRows.filter((r) => r.circuitId && r.orderedQty > 0);
-    if (validRows.length === 0) {
-      setFormError('Please select at least one circuit with quantity > 0.');
+    setFormError('');
+    setJobFieldErrors({});
+
+    const validation = jobFormSchema.safeParse({
+      vendorId: formData.vendorId,
+      targetDate: formData.targetDate || undefined,
+      remarks: formData.remarks?.trim() || undefined,
+      jobCircuits: jobCircuitRows.map((r) => ({
+        circuitId: r.circuitId,
+        orderedQty: Number(r.orderedQty),
+      })),
+    });
+
+    if (!validation.success) {
+      const errs: Record<string, string> = {};
+      validation.error.issues.forEach((issue) => {
+        const path = issue.path.join('.');
+        errs[path] = issue.message;
+      });
+      setJobFieldErrors(errs);
+      const firstMsg = validation.error.issues[0]?.message || 'Please fix the highlighted fields.';
+      setFormError(firstMsg);
+      toast.error(firstMsg);
       return;
     }
 
     setSubmitting(true);
-    setFormError('');
     try {
       const payload = {
         vendorId: formData.vendorId,
         targetDate: formData.targetDate || undefined,
-        remarks: formData.remarks || undefined,
-        jobCircuits: validRows.map((r) => ({
+        remarks: formData.remarks?.trim() || undefined,
+        jobCircuits: jobCircuitRows.filter((r) => r.circuitId).map((r) => ({
           circuitId: r.circuitId,
           orderedQty: Number(r.orderedQty),
         })),
@@ -392,16 +412,16 @@ export const Jobs: React.FC = () => {
 
       if (formMode === 'add') {
         const res = await api.post('/jobs', payload);
-        setSuccessMsg(`Job '${res.data.data.jobNumber}' saved as draft`);
+        toast.success(`Job '${res.data.data.jobNumber}' saved as draft successfully!`);
       } else if (selectedJob) {
         await api.put(`/jobs/${selectedJob._id}`, payload);
-        setSuccessMsg(`Job '${selectedJob.jobNumber}' updated`);
+        toast.success(`Job '${selectedJob.jobNumber}' updated successfully!`);
       }
       setShowFormModal(false);
       resetForm();
       fetchJobs();
     } catch (err: any) {
-      setFormError(err.response?.data?.message || 'Failed to save job');
+      handleApiError(err, undefined, 'Failed to save job');
     } finally {
       setSubmitting(false);
     }
@@ -409,21 +429,19 @@ export const Jobs: React.FC = () => {
 
   const handleApprove = (job: JobListItem) => {
     setConfirmApproveJob(job);
-    setErrorMsg('');
   };
 
   const executeApprove = async () => {
     if (!confirmApproveJob) return;
     setActionLoading(true);
     setActionJobId(confirmApproveJob._id);
-    setErrorMsg('');
     try {
       const res = await api.post(`/jobs/${confirmApproveJob._id}/approve`);
-      setSuccessMsg(`Job '${res.data.data.jobNumber}' approved - material reserved`);
+      toast.success(`Job '${res.data.data.jobNumber}' approved — material reserved!`);
       setConfirmApproveJob(null);
       fetchJobs();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to approve job');
+      toast.error(err.response?.data?.message || 'Failed to approve job: insufficient component stock.');
     } finally {
       setActionJobId(null);
       setActionLoading(false);
@@ -432,21 +450,19 @@ export const Jobs: React.FC = () => {
 
   const handleCancel = (job: JobListItem) => {
     setConfirmCancelJob(job);
-    setErrorMsg('');
   };
 
   const executeCancel = async () => {
     if (!confirmCancelJob) return;
     setActionLoading(true);
     setActionJobId(confirmCancelJob._id);
-    setErrorMsg('');
     try {
       await api.post(`/jobs/${confirmCancelJob._id}/cancel`);
-      setSuccessMsg(`Job '${confirmCancelJob.jobNumber}' cancelled`);
+      toast.success(`Job '${confirmCancelJob.jobNumber}' cancelled successfully.`);
       setConfirmCancelJob(null);
       fetchJobs();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to cancel job');
+      toast.error(err.response?.data?.message || 'Failed to cancel job');
     } finally {
       setActionJobId(null);
       setActionLoading(false);
@@ -511,11 +527,13 @@ export const Jobs: React.FC = () => {
         })),
         idempotencyKey: issueIdempotencyKey,
       });
-      setSuccessMsg(`Material issued! Challan: ${res.data.data.challan.challanNumber}`);
+      toast.success(`Material issued successfully! Delivery Challan: ${res.data.data.challan.challanNumber}`);
       setShowIssueModal(false);
       fetchJobs();
     } catch (err: any) {
-      setIssueError(err.response?.data?.message || 'Failed to issue material');
+      const msg = err.response?.data?.message || 'Failed to issue material';
+      setIssueError(msg);
+      toast.error(msg);
     } finally {
       setIssueSubmitting(false);
     }
@@ -556,7 +574,9 @@ export const Jobs: React.FC = () => {
 
     for (const item of receiveRows) {
       if (item.receivedQty + item.damagedQty > item.remaining) {
-        setReceiveError(`Total (${item.receivedQty + item.damagedQty}) exceeds remaining (${item.remaining}) for ${item.partCode}`);
+        const msg = `Total (${item.receivedQty + item.damagedQty}) exceeds remaining (${item.remaining}) for ${item.partCode}`;
+        setReceiveError(msg);
+        toast.error(msg);
         return;
       }
     }
@@ -574,14 +594,16 @@ export const Jobs: React.FC = () => {
         notes: receiveNotes || undefined,
         idempotencyKey: receiveIdempotencyKey,
       });
-      setSuccessMsg('Material receipt recorded successfully');
+      toast.success('Material receipt recorded successfully.');
       setShowReceiveModal(false);
       if (selectedJob) {
         handleOpenDetails(selectedJob);
       }
       fetchJobs();
     } catch (err: any) {
-      setReceiveError(err.response?.data?.message || 'Failed to record material receipt');
+      const msg = err.response?.data?.message || 'Failed to record material receipt';
+      setReceiveError(msg);
+      toast.error(msg);
     } finally {
       setReceiveSubmitting(false);
     }
@@ -638,7 +660,9 @@ export const Jobs: React.FC = () => {
       setJobReceiveCircuitRows(circuitRows);
       setJobReceiveComponentRows(componentRows);
     } catch (err: any) {
-      setJobReceiveError(err.response?.data?.message || 'Failed to load job for receiving');
+      const msg = err.response?.data?.message || 'Failed to load job for receiving';
+      setJobReceiveError(msg);
+      toast.error(msg);
     }
   };
 
@@ -663,18 +687,24 @@ export const Jobs: React.FC = () => {
     const componentLines = jobReceiveComponentRows.filter((r) => r.receivedQty > 0 || r.damagedQty > 0);
 
     if (circuitLines.length === 0 && componentLines.length === 0) {
-      setJobReceiveError('Enter a good/rejected circuit quantity or a received/damaged component quantity for at least one line');
+      const msg = 'Enter a good/rejected circuit quantity or a received/damaged component quantity for at least one line';
+      setJobReceiveError(msg);
+      toast.error(msg);
       return;
     }
     for (const row of circuitLines) {
       if (row.goodQty + row.rejectedQty > row.remaining) {
-        setJobReceiveError(`${row.circuitCode}: good + rejected cannot exceed the remaining ordered quantity (${row.remaining})`);
+        const msg = `${row.circuitCode}: good + rejected cannot exceed the remaining ordered quantity (${row.remaining})`;
+        setJobReceiveError(msg);
+        toast.error(msg);
         return;
       }
     }
     for (const row of componentLines) {
       if (row.receivedQty + row.damagedQty > row.remaining) {
-        setJobReceiveError(`${row.partCode}: received + damaged cannot exceed the remaining receivable quantity (${row.remaining})`);
+        const msg = `${row.partCode}: received + damaged cannot exceed the remaining receivable quantity (${row.remaining})`;
+        setJobReceiveError(msg);
+        toast.error(msg);
         return;
       }
     }
@@ -699,16 +729,18 @@ export const Jobs: React.FC = () => {
         idempotencyKey: jobReceiveIdempotencyKey,
       });
       const receiptNumber = res.data.data.receipt.receiptNumber;
-      setSuccessMsg(
+      toast.success(
         res.data.data.alreadyProcessed
           ? `Receipt already processed as '${receiptNumber}' (duplicate request ignored)`
-          : `Job receipt '${receiptNumber}' recorded - finished circuits and component returns applied together`
+          : `Job receipt '${receiptNumber}' recorded — finished circuits and component returns applied!`
       );
       setShowJobReceiveModal(false);
       if (selectedJob) handleOpenDetails(selectedJob);
       fetchJobs();
     } catch (err: any) {
-      setJobReceiveError(err.response?.data?.message || 'Failed to record job receipt');
+      const msg = err.response?.data?.message || 'Failed to record job receipt';
+      setJobReceiveError(msg);
+      toast.error(msg);
     } finally {
       setJobReceiveSubmitting(false);
     }
@@ -726,7 +758,9 @@ export const Jobs: React.FC = () => {
     if (!selectedJob) return;
     setCloseError('');
     if (closeIsShort && !closeReason.trim()) {
-      setCloseError('A reason is required to short-close a job with outstanding quantities or material');
+      const msg = 'A reason is required to short-close a job with outstanding quantities or material';
+      setCloseError(msg);
+      toast.error(msg);
       return;
     }
     setCloseSubmitting(true);
@@ -735,7 +769,11 @@ export const Jobs: React.FC = () => {
         shortClose: closeIsShort,
         reason: closeIsShort ? closeReason.trim() : undefined,
       });
-      setSuccessMsg(res.data.data.job.isShortClosed ? `Job '${res.data.data.job.jobNumber}' short-closed` : `Job '${res.data.data.job.jobNumber}' closed`);
+      toast.success(
+        res.data.data.job.isShortClosed
+          ? `Job '${res.data.data.job.jobNumber}' short-closed successfully.`
+          : `Job '${res.data.data.job.jobNumber}' closed successfully.`
+      );
       setShowCloseModal(false);
       setShowDetailsModal(false);
       fetchJobs();
@@ -815,35 +853,10 @@ export const Jobs: React.FC = () => {
         />
       </div>
 
-      {/* Notifications */}
-      {errorMsg && (
-        <div className="p-3.5 bg-[#C2413A]/10 border border-[#C2413A]/25 rounded-[10px] text-sm text-[#C2413A] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-[#C2413A] shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-          <button onClick={() => setErrorMsg('')} className="text-[#C2413A]/60 hover:text-[#C2413A] p-0.5">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {successMsg && (
-        <div className="p-3.5 bg-[#168060]/10 border border-[#168060]/25 rounded-[10px] text-sm text-[#168060] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-[#168060] shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-          <button onClick={() => setSuccessMsg('')} className="text-[#168060]/60 hover:text-[#168060] p-0.5">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {/* Filter and Search Bar */}
       <div className="enterprise-card p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-4 h-4 text-[#807365] absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Search job number..."
@@ -852,19 +865,20 @@ export const Jobs: React.FC = () => {
             className="input-enterprise !pl-9"
           />
         </div>
-        <select
+        <SimpleSelect
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="select-enterprise w-full sm:w-56"
-        >
-          <option value="all">All Statuses</option>
-          <option value="draft">Draft</option>
-          <option value="approved">Approved</option>
-          <option value="material_issued">Material Issued</option>
-          <option value="partially_received">Partially Received</option>
-          <option value="closed">Closed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+          onChange={setStatusFilter}
+          options={[
+            { value: 'all', label: 'All Statuses' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'approved', label: 'Approved' },
+            { value: 'material_issued', label: 'Material Issued' },
+            { value: 'partially_received', label: 'Partially Received' },
+            { value: 'closed', label: 'Closed' },
+            { value: 'cancelled', label: 'Cancelled' },
+          ]}
+          className="w-full sm:w-56"
+        />
       </div>
 
       {/* Jobs Table */}
@@ -1041,6 +1055,7 @@ export const Jobs: React.FC = () => {
         aggregatedBomPreview={aggregatedBomPreview}
         submitting={submitting}
         formError={formError}
+        fieldErrors={jobFieldErrors}
         onSubmit={handleSubmitForm}
       />
 

@@ -6,6 +6,12 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { TableSkeleton, ButtonSpinner } from '../components/ui/Loading';
+import { SearchableSelect } from '../components/ui/SearchableSelect';
+import { FormField, FormError } from '../components/ui/FormField';
+import { ValidatedInput, ValidatedTextarea } from '../components/ui/ValidatedInput';
+import { toast } from '../utils/toast';
+import { handleApiError } from '../utils/apiErrors';
+import { circuitSchema } from '../utils/validationSchemas';
 import {
   FileSpreadsheet,
   Plus,
@@ -55,6 +61,7 @@ interface ComponentOption {
   ratePerUnit: number;
   inStoreStock: number;
   reservedStock: number;
+  package?: string;
 }
 
 interface BomAvailabilityLine {
@@ -81,8 +88,6 @@ export const Circuits: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
 
   // Modals
   const [showFormModal, setShowFormModal] = useState(false);
@@ -93,6 +98,7 @@ export const Circuits: React.FC = () => {
   const [detailedCircuit, setDetailedCircuit] = useState<any>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [duplicateVersion, setDuplicateVersion] = useState('');
+  const [duplicateError, setDuplicateError] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -105,7 +111,7 @@ export const Circuits: React.FC = () => {
     Array<{ componentId: string; qtyPerUnit: number; designator: string; remarks: string }>
   >([{ componentId: '', qtyPerUnit: 1, designator: '', remarks: '' }]);
   const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchComponents();
@@ -134,7 +140,7 @@ export const Circuits: React.FC = () => {
       setCircuits(res.data.data);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.response?.data?.message || 'Failed to fetch circuits');
+      toast.error(err.response?.data?.message || 'Failed to fetch circuits');
     } finally {
       setLoading(false);
     }
@@ -159,7 +165,7 @@ export const Circuits: React.FC = () => {
   const resetForm = () => {
     setFormData({ circuitCode: '', name: '', version: '1.0', description: '' });
     setBomRows([{ componentId: '', qtyPerUnit: 1, designator: '', remarks: '' }]);
-    setFormError('');
+    setFieldErrors({});
   };
 
   const handleOpenAdd = () => {
@@ -171,7 +177,7 @@ export const Circuits: React.FC = () => {
   const handleOpenEdit = async (c: CircuitItem) => {
     setFormMode('edit');
     setSelectedCircuit(c);
-    setFormError('');
+    setFieldErrors({});
     try {
       const res = await api.get(`/circuits/${c._id}`);
       const data = res.data.data;
@@ -191,7 +197,7 @@ export const Circuits: React.FC = () => {
       );
       setShowFormModal(true);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to load circuit for editing');
+      toast.error(err.response?.data?.message || 'Failed to load circuit for editing');
     }
   };
 
@@ -212,7 +218,7 @@ export const Circuits: React.FC = () => {
   const handleOpenDuplicate = (c: CircuitItem) => {
     setSelectedCircuit(c);
     setDuplicateVersion('');
-    setFormError('');
+    setDuplicateError('');
     setShowDuplicateModal(true);
   };
 
@@ -221,6 +227,10 @@ export const Circuits: React.FC = () => {
   };
 
   const removeBomRow = (index: number) => {
+    if (bomRows.length <= 1) {
+      toast.warning('A circuit BOM must contain at least one component.');
+      return;
+    }
     setBomRows(bomRows.filter((_, i) => i !== index));
   };
 
@@ -228,6 +238,13 @@ export const Circuits: React.FC = () => {
     const updated = [...bomRows];
     updated[index] = { ...updated[index], [field]: value };
     setBomRows(updated);
+
+    if (fieldErrors[`bomItems.${index}.${field}`] || fieldErrors['bomItems']) {
+      const errs = { ...fieldErrors };
+      delete errs[`bomItems.${index}.${field}`];
+      delete errs['bomItems'];
+      setFieldErrors(errs);
+    }
   };
 
   const usedComponentIds = (currentIndex: number) =>
@@ -235,55 +252,64 @@ export const Circuits: React.FC = () => {
 
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError('');
+    setFieldErrors({});
 
-    const validRows = bomRows.filter((r) => r.componentId);
-    if (validRows.length === 0) {
-      setFormError('At least one BOM component is required');
+    const validation = circuitSchema.safeParse({
+      circuitCode: formData.circuitCode.trim(),
+      name: formData.name.trim(),
+      version: formData.version.trim(),
+      description: formData.description.trim() || undefined,
+      bomItems: bomRows.map((r) => ({
+        componentId: r.componentId,
+        qtyPerUnit: Number(r.qtyPerUnit),
+        designator: r.designator.trim() || undefined,
+        remarks: r.remarks.trim() || undefined,
+      })),
+    });
+
+    if (!validation.success) {
+      const errs: Record<string, string> = {};
+      validation.error.issues.forEach((issue) => {
+        const path = issue.path.join('.');
+        errs[path] = issue.message;
+      });
+      setFieldErrors(errs);
+      toast.error(validation.error.issues[0]?.message || 'Please correct the highlighted fields.');
       return;
-    }
-
-    const seen = new Set();
-    for (const r of validRows) {
-      if (seen.has(r.componentId)) {
-        setFormError('A BOM cannot contain the same component twice - remove the duplicate row');
-        return;
-      }
-      seen.add(r.componentId);
-      if (!r.qtyPerUnit || r.qtyPerUnit <= 0) {
-        setFormError('Every BOM row needs a quantity greater than zero');
-        return;
-      }
     }
 
     setSubmitting(true);
     try {
       const payload = {
-        bomItems: validRows.map((r) => ({
+        bomItems: bomRows.filter((r) => r.componentId).map((r) => ({
           componentId: r.componentId,
           qtyPerUnit: Number(r.qtyPerUnit),
-          designator: r.designator,
-          remarks: r.remarks,
+          designator: r.designator.trim() || undefined,
+          remarks: r.remarks.trim() || undefined,
         })),
       };
 
       if (formMode === 'add') {
-        await api.post('/circuits', { ...formData, ...payload });
-        setSuccessMsg(`Circuit '${formData.circuitCode.toUpperCase()}' created successfully`);
-      } else if (selectedCircuit) {
-        await api.put(`/circuits/${selectedCircuit._id}`, {
-          name: formData.name,
-          description: formData.description,
+        await api.post('/circuits', {
+          ...formData,
+          circuitCode: formData.circuitCode.toUpperCase().trim(),
           ...payload,
         });
-        setSuccessMsg(`Circuit '${formData.circuitCode}' updated successfully`);
+        toast.success(`Circuit '${formData.circuitCode.toUpperCase()}' created successfully!`);
+      } else if (selectedCircuit) {
+        await api.put(`/circuits/${selectedCircuit._id}`, {
+          name: formData.name.trim(),
+          description: formData.description.trim() || undefined,
+          ...payload,
+        });
+        toast.success(`Circuit '${formData.circuitCode}' updated successfully!`);
       }
 
       setShowFormModal(false);
       resetForm();
       fetchCircuits();
     } catch (err: any) {
-      setFormError(err.response?.data?.message || 'Failed to save circuit');
+      handleApiError(err, undefined, 'Failed to save circuit');
     } finally {
       setSubmitting(false);
     }
@@ -292,10 +318,10 @@ export const Circuits: React.FC = () => {
   const handleToggleStatus = async (c: CircuitItem) => {
     try {
       await api.patch(`/circuits/${c._id}/status`);
-      setSuccessMsg(`Circuit '${c.circuitCode}' ${c.status === 'active' ? 'deactivated' : 'activated'}`);
+      toast.success(`Circuit '${c.circuitCode}' ${c.status === 'active' ? 'deactivated' : 'activated'} successfully.`);
       fetchCircuits();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to update circuit status');
+      toast.error(err.response?.data?.message || 'Failed to update circuit status');
     }
   };
 
@@ -303,7 +329,7 @@ export const Circuits: React.FC = () => {
     e.preventDefault();
     if (!selectedCircuit) return;
     if (!duplicateVersion.trim()) {
-      setFormError('New version label is required (e.g. "2.0")');
+      setDuplicateError('New version label is required (e.g. "2.0")');
       return;
     }
 
@@ -312,11 +338,12 @@ export const Circuits: React.FC = () => {
       await api.post(`/circuits/${selectedCircuit._id}/duplicate`, {
         newVersion: duplicateVersion.trim(),
       });
-      setSuccessMsg(`Circuit duplicated as version '${duplicateVersion.trim()}'`);
+      toast.success(`Circuit duplicated as version '${duplicateVersion.trim()}' successfully!`);
       setShowDuplicateModal(false);
       fetchCircuits();
     } catch (err: any) {
-      setFormError(err.response?.data?.message || 'Failed to duplicate circuit');
+      setDuplicateError(err.response?.data?.message || 'Failed to duplicate circuit');
+      toast.error(err.response?.data?.message || 'Failed to duplicate circuit');
     } finally {
       setSubmitting(false);
     }
@@ -378,30 +405,7 @@ export const Circuits: React.FC = () => {
         />
       </div>
 
-      {/* Alert Messages */}
-      {errorMsg && (
-        <div className="p-3.5 bg-[#C2413A]/10 border border-[#C2413A]/25 rounded-[10px] text-sm text-[#C2413A] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-[#C2413A] shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-          <button onClick={() => setErrorMsg('')} className="text-[#C2413A]/60 hover:text-[#C2413A] p-0.5">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
-      {successMsg && (
-        <div className="p-3.5 bg-[#168060]/10 border border-[#168060]/25 rounded-[10px] text-sm text-[#168060] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-[#168060] shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-          <button onClick={() => setSuccessMsg('')} className="text-[#168060]/60 hover:text-[#168060] p-0.5">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* Toolbar / Search / Filter */}
       <div className="enterprise-card p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -574,132 +578,164 @@ export const Circuits: React.FC = () => {
         }
       >
         <div className="space-y-5">
-          {formError && (
-            <div className="p-2.5 rounded-md bg-[#C2413A]/10 border border-[#C2413A]/25 text-[#C2413A] text-xs">{formError}</div>
-          )}
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="label-text block mb-1.5">
-                Circuit Code <span className="text-[#C2413A]">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                disabled={formMode === 'edit'}
-                placeholder="e.g. PCB-001"
-                value={formData.circuitCode}
-                onChange={(e) => setFormData({ ...formData, circuitCode: e.target.value.toUpperCase() })}
-                className="input-enterprise font-mono uppercase disabled:bg-[#F7F6F3] disabled:text-[#6B6863]"
-              />
+              <FormField label="Circuit Code" required error={fieldErrors['circuitCode']}>
+                <ValidatedInput
+                  type="text"
+                  required
+                  disabled={formMode === 'edit'}
+                  placeholder="e.g. PCB-001"
+                  value={formData.circuitCode}
+                  onChange={(e) => {
+                    setFormData({ ...formData, circuitCode: e.target.value.toUpperCase() });
+                    if (fieldErrors['circuitCode']) {
+                      const errs = { ...fieldErrors };
+                      delete errs['circuitCode'];
+                      setFieldErrors(errs);
+                    }
+                  }}
+                  className="font-mono uppercase disabled:bg-[#F7F6F3] disabled:text-[#6B6863]"
+                  hasError={!!fieldErrors['circuitCode']}
+                />
+              </FormField>
             </div>
             <div>
-              <label className="label-text block mb-1.5">
-                Version <span className="text-[#C2413A]">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                disabled={formMode === 'edit'}
-                placeholder="e.g. 1.0"
-                value={formData.version}
-                onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                className="input-enterprise font-mono disabled:bg-[#F7F6F3] disabled:text-[#6B6863]"
-              />
-              {formMode === 'edit' && (
-                <p className="helper-text mt-1">Use "Duplicate as New Version" to change the version.</p>
-              )}
+              <FormField label="Version" required error={fieldErrors['version']} hint={formMode === 'edit' ? 'Use "Duplicate as New Version" to change the version.' : undefined}>
+                <ValidatedInput
+                  type="text"
+                  required
+                  disabled={formMode === 'edit'}
+                  placeholder="e.g. 1.0"
+                  value={formData.version}
+                  onChange={(e) => {
+                    setFormData({ ...formData, version: e.target.value });
+                    if (fieldErrors['version']) {
+                      const errs = { ...fieldErrors };
+                      delete errs['version'];
+                      setFieldErrors(errs);
+                    }
+                  }}
+                  className="font-mono disabled:bg-[#F7F6F3] disabled:text-[#6B6863]"
+                  hasError={!!fieldErrors['version']}
+                />
+              </FormField>
             </div>
             <div className="sm:col-span-2">
-              <label className="label-text block mb-1.5">
-                Circuit Name <span className="text-[#C2413A]">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Smart Switch Controller"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="input-enterprise"
-              />
+              <FormField label="Circuit Name" required error={fieldErrors['name']}>
+                <ValidatedInput
+                  type="text"
+                  required
+                  placeholder="e.g. Smart Switch Controller"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (fieldErrors['name']) {
+                      const errs = { ...fieldErrors };
+                      delete errs['name'];
+                      setFieldErrors(errs);
+                    }
+                  }}
+                  hasError={!!fieldErrors['name']}
+                />
+              </FormField>
             </div>
             <div className="sm:col-span-2">
-              <label className="label-text block mb-1.5">Description</label>
-              <textarea
-                rows={2}
-                placeholder="Optional description..."
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 rounded-[10px] border border-[#E6E3DE] text-sm text-[#171717] placeholder-[#6B6863]/60 focus:outline-none focus:ring-1 focus:ring-[#141414] focus:border-[#141414] transition-all bg-white"
-              />
+              <FormField label="Description" error={fieldErrors['description']}>
+                <ValidatedTextarea
+                  rows={2}
+                  placeholder="Optional description..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  hasError={!!fieldErrors['description']}
+                />
+              </FormField>
             </div>
           </div>
 
           {/* BOM Builder */}
           <div className="pt-4 border-t border-gray-100">
             <div className="flex items-center justify-between mb-2.5">
-              <label className="label-text font-semibold text-sm text-[#171717]">Bill of Materials (BOM Components)</label>
+              <div>
+                <label className="label-text font-semibold text-sm text-[#171717] block">
+                  Bill of Materials (BOM Components) <span className="text-[#C2413A]">*</span>
+                </label>
+                {fieldErrors['bomItems'] && (
+                  <FormError message={fieldErrors['bomItems']} className="mt-1" />
+                )}
+              </div>
               <button type="button" onClick={addBomRow} className="btn-secondary text-xs py-1">
                 <Plus className="w-3.5 h-3.5" /> Add Row
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {bomRows.map((row, idx) => {
                 const comp = componentMap.get(row.componentId);
                 const line = liveEstimate.lines[idx];
                 const used = usedComponentIds(idx);
+                const compOptions = components.map((c) => ({
+                  value: c._id,
+                  label: `${c.partCode} — ${c.name}`,
+                  description: `Stock: ${Math.max(0, c.inStoreStock - c.reservedStock)} | ₹${c.ratePerUnit.toFixed(2)}`,
+                  badge: c.package,
+                  disabled: used.has(c._id),
+                }));
+
                 return (
                   <div key={idx} className="p-3 rounded-xl border border-gray-200 bg-[#F7F6F3]/50 grid grid-cols-12 gap-2 items-start">
                     <div className="col-span-12 sm:col-span-4">
-                      <select
+                      <SearchableSelect
+                        options={compOptions}
                         value={row.componentId}
-                        onChange={(e) => updateBomRow(idx, 'componentId', e.target.value)}
-                        className="select-enterprise text-xs"
-                      >
-                        <option value="">Select component...</option>
-                        {components.map((c) => (
-                          <option key={c._id} value={c._id} disabled={used.has(c._id)}>
-                            {c.partCode} - {c.name}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => updateBomRow(idx, 'componentId', val)}
+                        placeholder="Select component..."
+                        searchPlaceholder="Search part code or name..."
+                        hasError={!!fieldErrors[`bomItems.${idx}.componentId`]}
+                      />
+                      {fieldErrors[`bomItems.${idx}.componentId`] && (
+                        <FormError message={fieldErrors[`bomItems.${idx}.componentId`]} className="mt-1" />
+                      )}
                       {comp && (
-                        <p className="helper-text mt-1">
+                        <p className="helper-text mt-1 pl-1">
                           Available: <span className="font-mono font-medium">{line?.available ?? 0}</span> | Rate: ₹{comp.ratePerUnit.toFixed(2)}
                         </p>
                       )}
                     </div>
                     <div className="col-span-4 sm:col-span-2">
-                      <input
+                      <ValidatedInput
                         type="number"
                         min="0.0001"
                         step="any"
                         placeholder="Qty"
                         value={row.qtyPerUnit}
                         onChange={(e) => updateBomRow(idx, 'qtyPerUnit', parseFloat(e.target.value) || 0)}
-                        className="input-enterprise text-xs font-mono"
+                        className="text-xs font-mono"
+                        hasError={!!fieldErrors[`bomItems.${idx}.qtyPerUnit`]}
                       />
+                      {fieldErrors[`bomItems.${idx}.qtyPerUnit`] && (
+                        <FormError message={fieldErrors[`bomItems.${idx}.qtyPerUnit`]} className="mt-1" />
+                      )}
                     </div>
                     <div className="col-span-4 sm:col-span-2">
-                      <input
+                      <ValidatedInput
                         type="text"
                         placeholder="Designator (R1-R4)"
                         value={row.designator}
                         onChange={(e) => updateBomRow(idx, 'designator', e.target.value)}
-                        className="input-enterprise text-xs font-mono"
+                        className="text-xs font-mono"
                       />
                     </div>
                     <div className="col-span-4 sm:col-span-3">
-                      <input
+                      <ValidatedInput
                         type="text"
                         placeholder="Remarks (optional)"
                         value={row.remarks}
                         onChange={(e) => updateBomRow(idx, 'remarks', e.target.value)}
-                        className="input-enterprise text-xs"
+                        className="text-xs"
                       />
                     </div>
-                    <div className="col-span-12 sm:col-span-1 flex sm:justify-end items-center gap-2">
+                    <div className="col-span-12 sm:col-span-1 flex sm:justify-end items-center gap-2 pt-1">
                       {line && line.comp && (
                         <span className="text-[11px] font-mono text-slate-600 sm:hidden">₹{line.lineCost.toFixed(2)}</span>
                       )}
@@ -707,9 +743,10 @@ export const Circuits: React.FC = () => {
                         type="button"
                         onClick={() => removeBomRow(idx)}
                         disabled={bomRows.length === 1}
-                        className="btn-ghost p-1.5 rounded-md disabled:opacity-30"
+                        className="btn-ghost p-1.5 rounded-md disabled:opacity-30 text-[#807365] hover:text-[#C2413A]"
+                        title="Delete row"
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -761,24 +798,21 @@ export const Circuits: React.FC = () => {
             {selectedCircuit?.version}) with the same BOM. The original version is never altered.
           </p>
 
-          {formError && (
-            <div className="p-2 rounded-[10px] bg-[#C2413A]/10 border border-[#C2413A]/25 text-[#C2413A] text-xs">
-              {formError}
-            </div>
-          )}
-
-          <div>
-            <label className="label-text block mb-1.5">New Version Label</label>
-            <input
+          <FormField label="New Version Label" required error={duplicateError}>
+            <ValidatedInput
               type="text"
               required
               autoFocus
               placeholder="e.g. 2.0"
               value={duplicateVersion}
-              onChange={(e) => setDuplicateVersion(e.target.value)}
-              className="input-enterprise font-mono"
+              onChange={(e) => {
+                setDuplicateVersion(e.target.value);
+                if (duplicateError) setDuplicateError('');
+              }}
+              className="font-mono"
+              hasError={!!duplicateError}
             />
-          </div>
+          </FormField>
         </div>
       </Modal>
 

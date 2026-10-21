@@ -4,6 +4,8 @@ import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { TableSkeleton } from '../components/ui/Loading';
+import { SimpleSelect } from '../components/ui/Select';
+import { toast } from '../utils/toast';
 import {
   FileText,
   BarChart3,
@@ -323,7 +325,11 @@ export const Reports: React.FC = () => {
       ]);
     }
 
-    if (rows.length === 0) return;
+    if (rows.length === 0) {
+      toast.warning('No data available to export for this view');
+      return;
+    }
+    toast.info('Export started...');
     const csvContent =
       'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -333,6 +339,7 @@ export const Reports: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success('Report exported to CSV successfully');
   };
 
   return (
@@ -691,69 +698,73 @@ export const Reports: React.FC = () => {
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full md:w-auto shrink-0">
           {/* Category Filter for Component & Low Stock */}
           {(activeTab === 'component-stock' || activeTab === 'low-stock') && (
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="select-enterprise !h-9 text-xs !w-44 shrink-0"
-            >
-              <option value="all">All Categories ({categories.length})</option>
-              {categories.map((cat) => (
-                <option key={cat._id} value={cat._id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+            <div className="w-48 shrink-0">
+              <SimpleSelect
+                value={categoryFilter}
+                onValueChange={(val) => setCategoryFilter(val)}
+                options={[
+                  { value: 'all', label: `All Categories (${categories.length})` },
+                  ...categories.map((cat) => ({ value: cat._id, label: cat.name })),
+                ]}
+                className="!h-9 text-xs"
+              />
+            </div>
           )}
 
           {/* Status Filter for Component Stock */}
           {activeTab === 'component-stock' && (
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="select-enterprise !h-9 text-xs !w-40 shrink-0"
-            >
-              <option value="all">All Statuses</option>
-              <option value="healthy">Healthy Stock</option>
-              <option value="low_stock">Low Stock (≤ Min)</option>
-              <option value="out_of_stock">Out of Stock (0)</option>
-              <option value="with_vendors">With Vendors Only</option>
-            </select>
+            <div className="w-44 shrink-0">
+              <SimpleSelect
+                value={statusFilter}
+                onValueChange={(val) => setStatusFilter(val)}
+                options={[
+                  { value: 'all', label: 'All Statuses' },
+                  { value: 'healthy', label: 'Healthy Stock' },
+                  { value: 'low_stock', label: 'Low Stock (≤ Min)' },
+                  { value: 'out_of_stock', label: 'Out of Stock (0)' },
+                  { value: 'with_vendors', label: 'With Vendors Only' },
+                ]}
+                className="!h-9 text-xs"
+              />
+            </div>
           )}
 
           {/* Vendor Filter for Material, Pending Jobs, Reconciliation */}
           {(activeTab === 'material-with-vendors' ||
             activeTab === 'pending-jobs' ||
             activeTab === 'job-reconciliation') && (
-            <select
-              value={vendorFilter}
-              onChange={(e) => setVendorFilter(e.target.value)}
-              className="select-enterprise !h-9 text-xs !w-44 shrink-0"
-            >
-              <option value="all">All Vendors ({vendors.length})</option>
-              {vendors.map((v) => (
-                <option key={v._id} value={v._id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
+            <div className="w-48 shrink-0">
+              <SimpleSelect
+                value={vendorFilter}
+                onValueChange={(val) => setVendorFilter(val)}
+                options={[
+                  { value: 'all', label: `All Vendors (${vendors.length})` },
+                  ...vendors.map((v) => ({ value: v._id, label: v.name })),
+                ]}
+                className="!h-9 text-xs"
+              />
+            </div>
           )}
 
           {/* Ledger Transaction Type */}
           {activeTab === 'stock-ledger' && (
-            <select
-              value={txTypeFilter}
-              onChange={(e) => setTxTypeFilter(e.target.value)}
-              className="select-enterprise !h-9 text-xs !w-48 shrink-0"
-            >
-              <option value="all">All Transaction Types</option>
-              <option value="INWARD">INWARD (GIN)</option>
-              <option value="RESERVE">RESERVE (Job Approved)</option>
-              <option value="UNRESERVE">UNRESERVE (Cancelled)</option>
-              <option value="ISSUE_TO_VENDOR">ISSUE_TO_VENDOR</option>
-              <option value="CIRCUIT_CONSUMPTION">CONSUMPTION</option>
-              <option value="RETURN_FROM_VENDOR">RETURN_FROM_VENDOR</option>
-              <option value="ADJUSTMENT">ADJUSTMENT</option>
-            </select>
+            <div className="w-52 shrink-0">
+              <SimpleSelect
+                value={txTypeFilter}
+                onValueChange={(val) => setTxTypeFilter(val)}
+                options={[
+                  { value: 'all', label: 'All Transaction Types' },
+                  { value: 'INWARD', label: 'INWARD (GIN)' },
+                  { value: 'RESERVE', label: 'RESERVE (Job Approved)' },
+                  { value: 'UNRESERVE', label: 'UNRESERVE (Cancelled)' },
+                  { value: 'ISSUE_TO_VENDOR', label: 'ISSUE_TO_VENDOR' },
+                  { value: 'CIRCUIT_CONSUMPTION', label: 'CONSUMPTION' },
+                  { value: 'RETURN_FROM_VENDOR', label: 'RETURN_FROM_VENDOR' },
+                  { value: 'ADJUSTMENT', label: 'ADJUSTMENT' },
+                ]}
+                className="!h-9 text-xs"
+              />
+            </div>
           )}
 
           <button

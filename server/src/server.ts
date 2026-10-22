@@ -5,7 +5,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import mongoose from 'mongoose';
-import { connectDB, getIsReplicaSet } from './config/db.js';
+import { connectDB } from './config/db.js';
 import { validateProductionEnv, resolveCorsOrigins, EnvironmentConfigError } from './config/env.js';
 import authRoutes from './routes/authRoutes.js';
 import mastersRoutes from './routes/mastersRoutes.js';
@@ -71,45 +71,22 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-// Health Check
+// Health Check. Public and unauthenticated, so it says only whether the API
+// can reach its database: 200 {"status":"ok"} or 503 {"status":"unavailable"}.
+// Connection details (host, database, replica set) are written to the server
+// log on connect and on failure, which only the team can read.
 app.get('/api/health', async (req: Request, res: Response) => {
-  let helloInfo: any = null;
-  let topologyInfo: any = null;
+  res.set('Cache-Control', 'no-store');
   try {
-    if (mongoose.connection.db) {
-      helloInfo = await mongoose.connection.db.command({ hello: 1 });
-    }
-    const client = typeof mongoose.connection.getClient === 'function'
-      ? mongoose.connection.getClient()
-      : (mongoose.connection as any).client;
-    topologyInfo = {
-      type: client?.topology?.description?.type,
-      setName: client?.topology?.description?.setName,
-      servers: Array.from(client?.topology?.description?.servers?.keys() || []),
-    };
-  } catch (err: any) {
-    helloInfo = { error: err.message };
+    await connectDB();
+    const db = mongoose.connection.db;
+    if (!db) throw new Error('No database handle after connecting');
+    await db.command({ ping: 1 });
+    res.json({ status: 'ok' });
+  } catch (err) {
+    console.error('[Health] Database check failed:', err);
+    res.status(503).json({ status: 'unavailable' });
   }
-
-  res.json({
-    status: 'ok',
-    service: 'Wave Electronics Stock & Job Management API',
-    version: '1.0.0',
-    time: new Date().toISOString(),
-    database: {
-      connected: mongoose.connection.readyState === 1,
-      isReplicaSet: getIsReplicaSet(),
-      host: mongoose.connection.host,
-      name: mongoose.connection.name,
-      hello: {
-        setName: helloInfo?.setName || null,
-        isWritablePrimary: helloInfo?.isWritablePrimary || helloInfo?.ismaster || false,
-        msg: helloInfo?.msg || null,
-        error: helloInfo?.error || null,
-      },
-      topology: topologyInfo,
-    },
-  });
 });
 
 // Every route below needs the database. On Vercel a request can arrive

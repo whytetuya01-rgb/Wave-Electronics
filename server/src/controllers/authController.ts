@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { resolveJwtSecret } from '../config/env.js';
+import { isKnownWeakPassword, passwordPolicyError } from '../utils/passwordPolicy.js';
 
 const generateToken = (id: string, email: string, role: string): string => {
   return jwt.sign({ id, email, role }, resolveJwtSecret(), { expiresIn: '7d' });
@@ -32,6 +33,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       res.status(401).json({ message: 'Invalid email or password' });
+      return;
+    }
+
+    // A default or common password (e.g. admin123 from the old seed) is
+    // refused in production even when it matches, since anyone can guess it.
+    // Another admin resets it on the Users page, or `npm run admin:setup`.
+    if (process.env.NODE_ENV === 'production' && isKnownWeakPassword(password)) {
+      res.status(403).json({
+        message: 'This account uses a default or common password and cannot sign in. Ask an administrator to set a new password.',
+      });
       return;
     }
 
@@ -86,6 +97,12 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<void>
 
     if (!name || !email || !password || !role) {
       res.status(400).json({ message: 'All fields (name, email, password, role) are required' });
+      return;
+    }
+
+    const passwordError = passwordPolicyError(password, email);
+    if (passwordError) {
+      res.status(400).json({ message: passwordError });
       return;
     }
 
@@ -206,14 +223,15 @@ export const resetUserPassword = async (req: AuthRequest, res: Response): Promis
     const { id } = req.params;
     const { password } = req.body;
 
-    if (!password || password.length < 6) {
-      res.status(400).json({ message: 'Password must be at least 6 characters' });
-      return;
-    }
-
     const user = await User.findById(id);
     if (!user) {
       res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    const passwordError = passwordPolicyError(password, user.email);
+    if (passwordError) {
+      res.status(400).json({ message: passwordError });
       return;
     }
 

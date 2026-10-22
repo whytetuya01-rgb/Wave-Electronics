@@ -4,6 +4,8 @@ dotenv.config();
 import mongoose from 'mongoose';
 import { spawn, ChildProcess } from 'child_process';
 import { connectDB } from './config/db.js';
+import { assertDisposableDatabase } from './config/databaseSafety.js';
+import { seededAdminLogin } from './testLogin.js';
 import { User } from './models/User.js';
 import { Vendor } from './models/Vendor.js';
 import { Circuit } from './models/Circuit.js';
@@ -222,8 +224,10 @@ async function runHttpTests() {
   console.log('====================================================\n');
 
   await connectDB();
+  assertDisposableDatabase('test-pdf');
 
-  const admin = await User.findOne({ email: 'admin@wave.com' });
+  const adminLogin = seededAdminLogin();
+  const admin = await User.findOne({ email: adminLogin.email });
   if (!admin) throw new Error('Seed data required: admin user not found. Run seed.ts first.');
 
   const vendor = await Vendor.findOne({ isActive: true });
@@ -317,7 +321,7 @@ async function runHttpTests() {
     const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'admin@wave.com', password: 'admin123' }),
+      body: JSON.stringify(adminLogin),
     });
     const { token } = (await loginRes.json()) as { token: string };
 

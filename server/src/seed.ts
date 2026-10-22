@@ -19,12 +19,34 @@ import { MaterialReceipt } from './models/MaterialReceipt.js';
 import { JobReceipt } from './models/JobReceipt.js';
 import { FinishedGoods } from './models/FinishedGoods.js';
 import { FinishedGoodsTransaction } from './models/FinishedGoodsTransaction.js';
+import { assertDisposableDatabase } from './config/databaseSafety.js';
+import { passwordPolicyError } from './utils/passwordPolicy.js';
 
+// Fills a DISPOSABLE database (preview, dev or test) with demo masters,
+// components, vendors and one stock inward. It first DELETES every collection
+// listed below, so it refuses any database that isn't disposable (see
+// config/databaseSafety.ts) and can never run against production.
+//
+// The only login it creates is one admin, taken from the environment:
+//   SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD (12+ characters), SEED_ADMIN_NAME (optional)
 async function seed() {
   try {
+    const adminEmail = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+    const adminName = process.env.SEED_ADMIN_NAME?.trim() || 'System Admin';
+    if (!adminEmail) {
+      throw new Error('Set SEED_ADMIN_EMAIL to the email address for the admin login.');
+    }
+    const passwordError = passwordPolicyError(adminPassword, adminEmail);
+    if (passwordError) {
+      throw new Error(`SEED_ADMIN_PASSWORD: ${passwordError}.`);
+    }
+
     const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/wave_electronics';
-    console.log(`Connecting to MongoDB for seeding: ${mongoUri}`);
     await mongoose.connect(mongoUri);
+    // Name and host only: the URI itself contains the database password.
+    console.log(`Connected to database "${mongoose.connection.name}" on ${mongoose.connection.host}`);
+    assertDisposableDatabase('The seed script');
 
     console.log('Clearing existing collections for fresh setup...');
     await Promise.all([
@@ -46,36 +68,15 @@ async function seed() {
       FinishedGoodsTransaction.deleteMany({}),
     ]);
 
-    console.log('1. Seeding Users...');
-    const salt = await bcrypt.genSalt(10);
-    const adminPassword = await bcrypt.hash('admin123', salt);
-    const storePassword = await bcrypt.hash('store123', salt);
-    const prodPassword = await bcrypt.hash('prod123', salt);
-
-    const [adminUser, storeUser, prodUser] = await User.create([
-      {
-        name: 'System Admin',
-        email: 'admin@wave.com',
-        passwordHash: adminPassword,
-        role: 'admin',
-        isActive: true,
-      },
-      {
-        name: 'Rajesh Storekeeper',
-        email: 'store@wave.com',
-        passwordHash: storePassword,
-        role: 'store_keeper',
-        isActive: true,
-      },
-      {
-        name: 'Amit Production',
-        email: 'prod@wave.com',
-        passwordHash: prodPassword,
-        role: 'production',
-        isActive: true,
-      },
-    ]);
-    console.log('✓ Users created (Admin, Storekeeper, Production)');
+    console.log('1. Seeding the admin user...');
+    const adminUser = await User.create({
+      name: adminName,
+      email: adminEmail,
+      passwordHash: await bcrypt.hash(adminPassword as string, await bcrypt.genSalt(10)),
+      role: 'admin',
+      isActive: true,
+    });
+    console.log(`✓ Admin user created: ${adminEmail}`);
 
     console.log('2. Seeding Categories...');
     const categories = await Category.create([
@@ -307,7 +308,7 @@ async function seed() {
         totalQty,
         totalAmount,
         notes: 'Monthly active components procurement',
-        createdById: storeUser._id,
+        createdById: adminUser._id,
       });
 
       // Update components stock and post ledger
@@ -330,7 +331,7 @@ async function seed() {
             referenceId: stockInward._id,
             referenceNo: inwardNumber,
             notes: `Inward from ${supplierName} (Bill: ${billNumber})`,
-            createdById: storeUser._id,
+            createdById: adminUser._id,
           });
         }
       }
@@ -338,15 +339,13 @@ async function seed() {
     }
 
     console.log('\n--- SEED COMPLETE ---');
-    console.log('Login credentials:');
-    console.log('  Admin:       admin@wave.com       / admin123');
-    console.log('  Storekeeper: store@wave.com       / store123');
-    console.log('  Production:  prod@wave.com        / prod123');
-    
+    console.log(`Sign in as ${adminEmail} with the password from SEED_ADMIN_PASSWORD.`);
+    console.log('Add store keeper and production users on the Users page.');
+
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error('Seed error:', error);
+    console.error('Seed error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }

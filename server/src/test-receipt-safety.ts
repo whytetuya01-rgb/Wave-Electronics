@@ -3,6 +3,7 @@ dotenv.config();
 
 import mongoose from 'mongoose';
 import { connectDB, getIsReplicaSet } from './config/db.js';
+import { assertDisposableDatabase } from './config/databaseSafety.js';
 
 // Day 5 Priority 6 - Phase 6 item 15: "Standalone MongoDB safe-failure
 // behavior" for Material Receipt. Mirrors test-approval-safety.ts /
@@ -14,6 +15,7 @@ async function runReceiptSafetyCheck() {
   console.log('====================================================\n');
 
   await connectDB();
+  assertDisposableDatabase('test-receipt-safety');
 
   if (getIsReplicaSet()) {
     console.log('  ⚠ This MongoDB connection IS a replica set - this check needs a standalone');

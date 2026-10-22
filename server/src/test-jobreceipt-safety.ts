@@ -3,6 +3,7 @@ dotenv.config();
 
 import mongoose from 'mongoose';
 import { connectDB, getIsReplicaSet } from './config/db.js';
+import { assertDisposableDatabase } from './config/databaseSafety.js';
 
 // Day 5 Correction - Critical Safeguard #8: "Reject inventory operations
 // when transactions are unavailable" for the new combined job-receiving and
@@ -15,6 +16,7 @@ async function runJobReceiptSafetyCheck() {
   console.log('====================================================\n');
 
   await connectDB();
+  assertDisposableDatabase('test-jobreceipt-safety');
 
   if (getIsReplicaSet()) {
     console.log('  ⚠ This MongoDB connection IS a replica set - this check needs a standalone');

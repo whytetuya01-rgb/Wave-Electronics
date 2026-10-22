@@ -34,7 +34,7 @@ export const createUserSchema = z.object({
     .email('Please enter a valid email address'),
   password: z
     .string()
-    .min(6, 'Password must be at least 6 characters')
+    .min(12, 'Password must be at least 12 characters')
     .max(72, 'Password must be under 72 characters'),
   role: z.enum(['admin', 'store_keeper', 'production'], {
     errorMap: () => ({ message: 'Please select a role' }),
@@ -45,7 +45,7 @@ export type CreateUserFormData = z.infer<typeof createUserSchema>;
 export const resetPasswordSchema = z.object({
   password: z
     .string()
-    .min(6, 'Password must be at least 6 characters')
+    .min(12, 'Password must be at least 12 characters')
     .max(72, 'Password must be under 72 characters'),
 });
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;

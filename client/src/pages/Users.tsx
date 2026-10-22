@@ -452,7 +452,7 @@ export const Users: React.FC = () => {
             required
             error={form.formState.errors.password?.message}
             id="user-password"
-            helperText="Share this with the user securely; they can be assigned a new one anytime via Reset Password."
+            helperText="At least 12 characters, not a common password. Share it with the user securely; they can be assigned a new one anytime via Reset Password."
           >
             <ValidatedInput id="user-password" type="password" placeholder="••••••••" {...form.register('password')} />
           </FormField>
@@ -495,6 +495,7 @@ export const Users: React.FC = () => {
             required
             error={resetPasswordForm.formState.errors.password?.message}
             id="new-password"
+            helperText="At least 12 characters, not a common password."
           >
             <ValidatedInput
               id="new-password"

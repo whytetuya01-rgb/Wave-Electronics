@@ -3,6 +3,7 @@ dotenv.config();
 
 import mongoose from 'mongoose';
 import { connectDB, getIsReplicaSet } from './config/db.js';
+import { assertDisposableDatabase } from './config/databaseSafety.js';
 
 // Day 3 Priority 4 - Test 44: "Approval without transaction support fails
 // safely." This must be run against an ACTUAL standalone (non-replica-set)
@@ -14,6 +15,7 @@ async function runApprovalSafetyCheck() {
   console.log('====================================================\n');
 
   await connectDB();
+  assertDisposableDatabase('test-approval-safety');
 
   if (getIsReplicaSet()) {
     console.log('  ⚠ This MongoDB connection IS a replica set - this check needs a standalone');

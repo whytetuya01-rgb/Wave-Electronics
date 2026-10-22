@@ -3,6 +3,7 @@ dotenv.config();
 
 import mongoose from 'mongoose';
 import { connectDB, getIsReplicaSet } from './config/db.js';
+import { assertDisposableDatabase } from './config/databaseSafety.js';
 
 // Day 4 Priority 5 - Phase 7 Test 17: "Standalone MongoDB fails safely
 // without partial writes" for Material Issue. Mirrors test-approval-safety.ts
@@ -14,6 +15,7 @@ async function runIssueSafetyCheck() {
   console.log('====================================================\n');
 
   await connectDB();
+  assertDisposableDatabase('test-issue-safety');
 
   if (getIsReplicaSet()) {
     console.log('  ⚠ This MongoDB connection IS a replica set - this check needs a standalone');

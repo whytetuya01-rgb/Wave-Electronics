@@ -9,7 +9,7 @@ import { loginSchema, LoginFormData } from '../utils/validationSchemas';
 import { FormField } from '../components/ui/FormField';
 import { ValidatedInput } from '../components/ui/ValidatedInput';
 import { ButtonSpinner } from '../components/ui/Loading';
-import { Zap, Lock, Mail, ArrowRight, ShieldCheck, UserCheck, Factory } from 'lucide-react';
+import { Zap, Lock, Mail, ArrowRight } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
@@ -20,9 +20,7 @@ export const Login: React.FC = () => {
   const {
     register,
     handleSubmit,
-    setValue,
     setError,
-    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -62,13 +60,6 @@ export const Login: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const setDemoCredentials = (roleEmail: string, rolePass: string) => {
-    setValue('email', roleEmail, { shouldValidate: true });
-    setValue('password', rolePass, { shouldValidate: true });
-    clearErrors();
-    setServerError('');
   };
 
   const isPending = submitting || isSubmitting;
@@ -147,39 +138,6 @@ export const Login: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Logins */}
-          <div className="mt-7 pt-6 border-t border-[#E6E3DE]">
-            <p className="text-[11px] font-semibold text-[#6B6863] uppercase tracking-wider mb-3 text-center">
-              Quick Role Switch (Demo)
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('admin@wave.com', 'admin123')}
-                className="btn-secondary !h-auto flex-col !p-2.5 text-[11px]"
-              >
-                <ShieldCheck className="w-4 h-4 mb-1 text-[#807365]" />
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('store@wave.com', 'store123')}
-                className="btn-secondary !h-auto flex-col !p-2.5 text-[11px]"
-              >
-                <UserCheck className="w-4 h-4 mb-1 text-[#807365]" />
-                Store Keeper
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('prod@wave.com', 'prod123')}
-                className="btn-secondary !h-auto flex-col !p-2.5 text-[11px]"
-              >
-                <Factory className="w-4 h-4 mb-1 text-[#807365]" />
-                Production
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

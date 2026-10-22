@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { resolveMongoUri } from './env.js';
+import { deploymentDatabaseMismatch } from './databaseSafety.js';
 
 let isReplicaSet = false;
 let connection: Promise<typeof mongoose> | null = null;
@@ -76,6 +77,12 @@ const openConnection = async () => {
         '[FATAL] Production requires a transaction-capable MongoDB replica set. ' +
           'Standalone MongoDB cannot guarantee atomic multi-document stock operations. Refusing to start.'
       );
+    }
+
+    const mismatch = deploymentDatabaseMismatch(conn.connection.name);
+    if (mismatch) {
+      await mongoose.disconnect();
+      throw new Error(`[FATAL] ${mismatch} Refusing to start.`);
     }
 
     return conn;

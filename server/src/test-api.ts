@@ -3,6 +3,8 @@ dotenv.config();
 
 import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
+import { assertDisposableDatabase } from './config/databaseSafety.js';
+import { seededAdminLogin } from './testLogin.js';
 import { User } from './models/User.js';
 import { Category } from './models/Category.js';
 import { Component } from './models/Component.js';
@@ -17,12 +19,14 @@ async function runVerification() {
   // correctly reflects this connection - the Priority 4 approval tests
   // below depend on this to detect a replica-set deployment.
   await connectDB();
+  assertDisposableDatabase('test-api');
 
   // Test 1: Verify Users and Password comparison
   console.log('[Test 1]: Testing User Authentication & Password Hashing');
-  const admin = await User.findOne({ email: 'admin@wave.com' });
+  const { email: adminEmail, password: adminPassword } = seededAdminLogin();
+  const admin = await User.findOne({ email: adminEmail });
   if (!admin) throw new Error('Admin user not found');
-  const isPasswordValid = await admin.comparePassword('admin123');
+  const isPasswordValid = await admin.comparePassword(adminPassword);
   const isInvalidPasswordRejected = !(await admin.comparePassword('wrongpassword'));
   if (isPasswordValid && isInvalidPasswordRejected) {
     console.log('  ✓ Pass: User bcrypt password comparison and reject logic verified');

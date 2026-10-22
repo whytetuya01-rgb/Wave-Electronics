@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { CommandPalette, CommandItem } from './CommandPalette';
+import waveEmblem from '../../assets/brand/wave-emblem.png';
 import {
   Cpu,
   LayoutDashboard,
@@ -19,7 +20,6 @@ import {
   Command,
   Menu,
   X,
-  Zap,
   PanelLeftClose,
   PanelLeft,
   ChevronDown,
@@ -240,8 +240,8 @@ export const AppLayout: React.FC = () => {
         } flex items-center border-b border-[#252525] transition-all duration-240 ease-smooth`}
       >
         <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-8 h-8 rounded-[8px] bg-white text-[#141414] flex items-center justify-center shadow-xs shrink-0 transition-transform duration-180 ease-smooth hover:scale-105">
-            <Zap className="w-4.5 h-4.5 fill-current text-[#141414]" />
+          <div className="w-8 h-8 rounded-[8px] bg-white flex items-center justify-center shadow-xs shrink-0 transition-transform duration-180 ease-smooth hover:scale-105">
+            <img src={waveEmblem} alt={isCollapsed ? 'Wave Electronics' : ''} className="w-7 h-7" />
           </div>
           {!isCollapsed && (
             <div className="truncate transition-opacity duration-200">
@@ -589,7 +589,7 @@ export const AppLayout: React.FC = () => {
 
             <footer className="no-print mt-10 pt-4 border-t border-[#E6E3DE] flex flex-col sm:flex-row items-center justify-between gap-1.5 text-[12px] text-[#8A847C]">
               <span className="flex items-center gap-1.5">
-                <Zap className="w-3 h-3 text-[#A69B8D]" />
+                <img src={waveEmblem} alt="" className="w-4 h-4" />
                 © {new Date().getFullYear()} Wave Electronics · Component Stock &amp; Job Management
               </span>
               <span className="hidden md:inline">

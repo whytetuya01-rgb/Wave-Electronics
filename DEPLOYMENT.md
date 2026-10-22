@@ -228,7 +228,7 @@ Everything here writes only to `wave_electronics_preview`.
 - [ ] Issue material: a Delivery Challan is created; **download its PDF**.
 - [ ] Record the job receipt (finished circuits and returned components); **download the Job Receipt PDF**.
 - [ ] Close the job; component stock, the ledger and Finished Goods agree with what was issued and received.
-- [ ] PDFs show the company name, address and GSTIN, and the logo once it's added (Part 8).
+- [ ] PDFs show the WCS Wave Control System logo, the company name, address and GSTIN.
 
 **Security spot checks**
 
@@ -252,7 +252,7 @@ Write down anything that fails, with the time and the page, and share it before 
    Remove-Item Env:MONGODB_URI, Env:ADMIN_EMAIL, Env:ADMIN_PASSWORD
    ```
    It sets a new password for that admin (or creates the admin if the email doesn't exist) and never deletes anything. It then lists any other account still on an old default password; sign in as the admin and use **Users → Reset Password** for each.
-4. **Logo.** Add the company logo as `server/assets/company-logo.png` (PNG or JPEG, roughly square) and commit it. See [`server/assets/README.md`](server/assets/README.md).
+4. **Logo.** Done: the WCS Wave Control System logo is in `server/assets/company-logo.png` (PDFs) and in the web app. To change it later, replace the files listed in [`server/assets/README.md`](server/assets/README.md).
 5. **Production variables** from Part 5 are set (Production only).
 6. **Release.** Merge the tested branch into `main`. Vercel then builds the Production deployment. Afterwards check `/api/health` and sign in, but don't create test records in Production.
 

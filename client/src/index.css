@@ -437,22 +437,6 @@ tbody > tr:last-child > .td-enterprise {
   }
 }
 
-/* Subtle glowing logo pulse */
-@keyframes logo-glow {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(166, 155, 141, 0);
-  }
-  50% {
-    transform: scale(1.02);
-    box-shadow: 0 0 24px 3px rgba(166, 155, 141, 0.28);
-  }
-}
-
-.logo-glow-animate {
-  animation: logo-glow 2.4s infinite ease-in-out;
-}
-
 /* Sidebar Navigation Tooltip */
 .sidebar-tooltip {
   @apply pointer-events-none absolute left-full ml-3 px-2.5 py-1.5 rounded-[7px] bg-[#171717] text-white text-xs font-medium whitespace-nowrap shadow-lg border border-[#303030] z-50 transition-opacity duration-180;

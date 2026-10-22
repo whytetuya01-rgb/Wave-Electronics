@@ -9,7 +9,8 @@ import { loginSchema, LoginFormData } from '../utils/validationSchemas';
 import { FormField } from '../components/ui/FormField';
 import { ValidatedInput } from '../components/ui/ValidatedInput';
 import { ButtonSpinner } from '../components/ui/Loading';
-import { Zap, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Lock, Mail, ArrowRight } from 'lucide-react';
+import waveLogo from '../assets/brand/wave-logo.png';
 
 export const Login: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
@@ -72,11 +73,7 @@ export const Login: React.FC = () => {
 
       <div className="w-full max-w-md z-10 animate-fade-in-up">
         <div className="text-center mb-8">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-[#141414] ring-1 ring-[#303030] items-center justify-center shadow-[0_8px_24px_-8px_rgba(20,20,20,0.45)] mb-4 transition-transform duration-180 hover:scale-105">
-            <span className="w-8 h-8 rounded-[9px] bg-white flex items-center justify-center">
-              <Zap className="w-[18px] h-[18px] fill-current text-[#141414]" />
-            </span>
-          </div>
+          <img src={waveLogo} alt="WCS Wave Control System" className="h-20 w-auto mx-auto mb-5" />
           <h1 className="text-[26px] font-semibold text-[#171717] tracking-tight">Wave Electronics</h1>
           <p className="text-sm text-[#6B6863] mt-1 font-normal">Component Stock &amp; Job Management</p>
         </div>

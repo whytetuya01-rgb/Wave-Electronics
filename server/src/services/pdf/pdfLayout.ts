@@ -7,6 +7,8 @@ import path from 'path';
 // path on a self-hosted server's disk does not exist.
 const ASSETS_DIR = path.join(__dirname, '..', '..', '..', 'assets');
 const BUNDLED_LOGO = path.join(ASSETS_DIR, 'company-logo.png');
+const LOGO_MAX_WIDTH = 130;
+const LOGO_MAX_HEIGHT = 46;
 
 // First logo file that exists: the Settings path, then COMPANY_LOGO_PATH,
 // then the bundled one - so a path left over from a self-hosted setup falls
@@ -106,10 +108,18 @@ export function drawCompanyHeader(
   const logoPath = resolveLogoPath(companyInfo?.logoPath);
 
   let textX = left;
+  let logoHeight = 0;
   if (logoPath) {
     try {
-      doc.image(logoPath, left, top, { width: 42, height: 42 });
-      textX = left + 52;
+      // Scaled to fit LOGO_MAX_WIDTH x LOGO_MAX_HEIGHT with its proportions
+      // kept (the company logo is about 2.3:1); the name starts beside it.
+      // openImage is PDFKit API missing from its type definitions.
+      const image = (doc as unknown as { openImage(src: string): { width: number; height: number } }).openImage(logoPath);
+      const scale = Math.min(LOGO_MAX_WIDTH / image.width, LOGO_MAX_HEIGHT / image.height);
+      const width = image.width * scale;
+      logoHeight = image.height * scale;
+      doc.image(logoPath, left, top, { width, height: logoHeight });
+      textX = left + width + 14;
     } catch {
       // Invalid/unreadable image - fall back to text-only header rather
       // than failing the whole document.
@@ -136,7 +146,7 @@ export function drawCompanyHeader(
     .fillColor(COLORS.black)
     .text(documentTitle.toUpperCase(), left, top + 4, { width: right - left, align: 'right', lineBreak: false });
 
-  const dividerY = Math.max(infoY, top + 44) + 8;
+  const dividerY = Math.max(infoY, top + 44, top + logoHeight) + 8;
   doc.moveTo(left, dividerY).lineTo(right, dividerY).strokeColor(COLORS.gold).lineWidth(1.2).stroke();
 
   return dividerY + 16;

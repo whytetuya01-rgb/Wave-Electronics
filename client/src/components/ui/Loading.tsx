@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap } from 'lucide-react';
+import waveLogo from '../../assets/brand/wave-logo.png';
 
 /* =========================================================================
    1. BRANDED APPLICATION LOADER (WAVE ELECTRONICS)
@@ -15,14 +15,8 @@ export const AppLoader: React.FC<{ message?: string }> = ({
       className="min-h-screen flex flex-col items-center justify-center bg-[#FAF9F7] text-[#171717] p-6 select-none"
     >
       <div className="flex flex-col items-center text-center max-w-sm">
-        {/* Layered Branded Logo with subtle glow pulse */}
-        <div className="relative mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-[#171717] border border-[#303030] flex items-center justify-center shadow-md logo-glow-animate">
-            <Zap className="w-8 h-8 fill-current text-white" />
-          </div>
-          {/* Subtle outer golden-grey accent ring */}
-          <div className="absolute -inset-1 rounded-[18px] border border-[#A69B8D]/30 pointer-events-none" />
-        </div>
+        {/* Company logo */}
+        <img src={waveLogo} alt="WCS Wave Control System" className="h-20 w-auto mb-6" />
 
         {/* Company Title */}
         <h1 className="text-xl font-bold tracking-tight text-[#171717]">

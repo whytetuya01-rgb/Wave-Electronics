@@ -4,7 +4,7 @@ A step-by-step guide, written for someone doing this for the first time. Work th
 
 **Ground rules**
 
-- Production data lives in the Atlas database `wave_electronics`. Preview uses `wave_electronics_preview`. Each has its own database user and password.
+- Production data lives in the Atlas database `wave_electronics`. Preview uses `wave_electronics_preview`, and local development uses `wave_electronics_dev`. Each has its own database user and password, limited to that one database.
 - Never run the seed script, tests, or any reset against `wave_electronics`. The scripts refuse to, but don't rely on that.
 - Never paste connection strings, passwords or secrets into the repository, chat, tickets or screenshots. They go in Vercel's environment variables, or into your own terminal for a one-off command.
 
@@ -24,6 +24,8 @@ Both share one web address, so the browser talks to the API at `/api` on the sam
 Built-in safety checks:
 
 - A **Preview** deployment refuses to start unless its database name ends in `_preview`. **Production** refuses a database whose name ends in `_preview`, `_dev` or `_test`.
+- A **local development** server (anything not running with `NODE_ENV=production`) refuses any database whose name doesn't end in `_dev`, `_test` or `_preview`, unless it's a MongoDB on your own computer. It can never open `wave_electronics`.
+- All these checks read the database name from the connection string **before** connecting, so a refused database is never touched, not even to create an index.
 - The seed script and the test scripts only run against a database whose name ends in `_preview`, `_dev` or `_test`, or one on your own computer.
 - In Production, an account whose password is a known default (such as the old `admin123`) can't sign in until an admin gives it a new password.
 - `/api/health` is public and only says `{"status":"ok"}` (200) or `{"status":"unavailable"}` (503). Connection details only go to the Vercel logs, which only your team can see.
@@ -32,21 +34,33 @@ Built-in safety checks:
 
 ## Part 2 – MongoDB Atlas: one database user per environment
 
+Three database users for the app, each able to read and write exactly one database:
+
+| Environment | Username | Role | Database | Used in |
+|---|---|---|---|---|
+| Development | `wave_dev_app` | `readWrite` | `wave_electronics_dev` | your `server/.env` |
+| Preview | `wave_preview_app` | `readWrite` | `wave_electronics_preview` | Vercel, Preview only |
+| Production | `wave_prod_app` | `readWrite` | `wave_electronics` | Vercel, Production only |
+
 In [cloud.mongodb.com](https://cloud.mongodb.com), open the project that holds your cluster.
 
-**2.1 Create the Preview database user**
+**2.1 Create each user** (repeat three times, using the table above)
 
 1. Go to **Security → Database Access → Add New Database User**.
-2. Authentication method: **Password**. Username: `wave_preview_app`.
+2. Authentication method: **Password**. Enter the username from the table.
 3. Click **Autogenerate Secure Password**, then **Copy**. Keep it somewhere safe, such as a password manager. Generated passwords contain only letters and digits, so they work in a connection string as they are.
-4. Under **Database User Privileges**, choose **Add Specific Privilege**: role `readWrite`, database `wave_electronics_preview`, collection left empty.
+4. Under **Database User Privileges**, open **Specific Privileges → Add Specific Privilege**: role `readWrite`, database from the table, collection left empty. Don't tick any built-in role such as *Atlas admin* or *Read and write to any database*.
 5. Click **Add User**.
 
-This user can only read and write the Preview database. Even a mistake in Vercel can't reach production data with it.
+A user created this way can't even see the other databases. A mistake in Vercel or on your laptop can't reach production data with the Preview or Development user.
 
-**2.2 Create the Production database user**
+**2.2 The user currently in your `server/.env`**
 
-Repeat 2.1 with username `wave_prod_app` and privilege `readWrite` on database `wave_electronics`. Don't reuse the user in your local `server/.env` file; that user may have wider rights.
+Your local file signs in with a user that has the **Atlas admin** role, which can read, change and delete every database on the cluster, production included. Once Part 2.5 works, stop using it for the app:
+
+- Check it isn't used anywhere else (another server, a script, a colleague's laptop).
+- Then **Edit → Delete** it under Database Access, or at least **Edit Password** to a new generated one, since the current password has been stored in a file on a laptop.
+- People who manage Atlas should use their own Atlas website logins, not a shared database user.
 
 **2.3 Network access (for testing)**
 
@@ -57,16 +71,36 @@ Vercel's servers have no fixed IP addresses. For the Preview testing phase:
 
 This is acceptable only because each user has a long generated password and access to one database only. Part 8 replaces it before Production.
 
-**2.4 Build the two connection strings**
+**2.4 Build the three connection strings**
 
 1. Go to **Database → Clusters → Connect → Drivers** and copy the string. It looks like:
    `mongodb+srv://<username>:<db_password>@cluster0.abcde.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
-2. Make two copies and fill them in:
-   - **Preview:** username `wave_preview_app`, its password, and `wave_electronics_preview` between `.net/` and `?`:
-     `mongodb+srv://wave_preview_app:PASSWORD@cluster0.abcde.mongodb.net/wave_electronics_preview?retryWrites=true&w=majority&appName=Cluster0`
-   - **Production:** `wave_prod_app`, its password, and `wave_electronics`.
+2. Make three copies and fill in each one's username, password, and database name (between `.net/` and `?`):
+   - **Development:** `mongodb+srv://wave_dev_app:PASSWORD@cluster0.abcde.mongodb.net/wave_electronics_dev?retryWrites=true&w=majority&appName=Cluster0`
+   - **Preview:** `wave_preview_app`, its password, `wave_electronics_preview`.
+   - **Production:** `wave_prod_app`, its password, `wave_electronics`.
 
 The database name in the string matters. It decides which database the app uses, and the safety checks read it.
+
+**2.5 Switch local development to the Development user**
+
+Your `server/.env` already points at `wave_electronics_dev`, still with the old admin user. To finish the switch:
+
+1. Open `server/.env` in your editor and replace the whole `MONGODB_URI=` value with the **Development** string from 2.4. Save.
+2. Check it, without showing the password:
+   ```powershell
+   npm run env:check -w server -- --roles
+   ```
+   It must say `Database "wave_electronics_dev"` and `readWrite on wave_electronics_dev`, with no `!!` warnings.
+3. Restart the API: stop `npm run dev:server` with **Ctrl+C** and start it again.
+4. Fill the empty development database with demo data and your own local admin login, as in Part 3 but with the **Development** string:
+   ```powershell
+   $env:MONGODB_URI = Read-Host "Paste the DEVELOPMENT connection string"
+   $env:SEED_ADMIN_EMAIL = "your.name@yourcompany.com"
+   $env:SEED_ADMIN_PASSWORD = Read-Host "Choose your local admin password (12+ characters)"
+   npm run seed -w server
+   Remove-Item Env:MONGODB_URI, Env:SEED_ADMIN_EMAIL, Env:SEED_ADMIN_PASSWORD
+   ```
 
 ---
 
@@ -228,7 +262,7 @@ Write down anything that fails, with the time and the page, and share it before 
 
 **Login rate limiting.** 20 attempts per 15 minutes per IP address, counted in MongoDB (`ratelimitcounters` collection) and shared by every server instance. MongoDB deletes old counters automatically.
 
-**Local development.** `npm run dev:server` and `npm run dev:client`. Point `server/.env` at a development database, e.g. `wave_electronics_dev` on Atlas with its own `readWrite` user, or a local MongoDB. **Never point it at `wave_electronics`.**
+**Local development.** `npm run dev:server` and `npm run dev:client`, with `server/.env` pointing at `wave_electronics_dev` through the `wave_dev_app` user (Part 2.5), or at a MongoDB on your own computer. The server refuses `wave_electronics`. `npm run env:check -w server` shows what your machine is configured to use, with secrets hidden; add `-- --roles` to also see the database user's rights.
 
 **Running the regression tests.** They need a disposable database that's a replica set (for transactions); the four `test-*-safety.ts` files need a standalone (non-replica-set) one. Seed it first, then run each suite from `server/` on a freshly seeded database, because `test-api` uses up the demo stock that `test-pdf` needs:
 

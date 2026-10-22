@@ -11,7 +11,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx src/seed.ts",
-    "admin:setup": "tsx src/setup-admin.ts"
+    "admin:setup": "tsx src/setup-admin.ts",
+    "env:check": "tsx src/check-env.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

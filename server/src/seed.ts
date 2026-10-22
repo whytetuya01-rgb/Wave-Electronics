@@ -42,11 +42,11 @@ async function seed() {
       throw new Error(`SEED_ADMIN_PASSWORD: ${passwordError}.`);
     }
 
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/wave_electronics';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/wave_electronics_dev';
+    assertDisposableDatabase('The seed script', mongoUri);
     await mongoose.connect(mongoUri);
     // Name and host only: the URI itself contains the database password.
     console.log(`Connected to database "${mongoose.connection.name}" on ${mongoose.connection.host}`);
-    assertDisposableDatabase('The seed script');
 
     console.log('Clearing existing collections for fresh setup...');
     await Promise.all([

@@ -68,7 +68,7 @@ export function resolveMongoUri(env: NodeJS.ProcessEnv = process.env): string {
     return uri.trim();
   }
 
-  return uri && uri.trim() ? uri.trim() : 'mongodb://127.0.0.1:27017/wave_electronics';
+  return uri && uri.trim() ? uri.trim() : 'mongodb://127.0.0.1:27017/wave_electronics_dev';
 }
 
 // Resolves the set of trusted CORS origins. Production REQUIRES at least

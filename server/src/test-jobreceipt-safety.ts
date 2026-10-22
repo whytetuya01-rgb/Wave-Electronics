@@ -15,8 +15,8 @@ async function runJobReceiptSafetyCheck() {
   console.log('   TEST - JOB RECEIPT & CLOSING FAIL SAFELY WITHOUT TRANSACTIONS');
   console.log('====================================================\n');
 
-  await connectDB();
   assertDisposableDatabase('test-jobreceipt-safety');
+  await connectDB();
 
   if (getIsReplicaSet()) {
     console.log('  ⚠ This MongoDB connection IS a replica set - this check needs a standalone');

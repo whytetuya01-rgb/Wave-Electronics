@@ -223,8 +223,8 @@ async function runHttpTests() {
   console.log('   PRIORITY 7 - PDF HTTP ENDPOINT TESTS');
   console.log('====================================================\n');
 
-  await connectDB();
   assertDisposableDatabase('test-pdf');
+  await connectDB();
 
   const adminLogin = seededAdminLogin();
   const admin = await User.findOne({ email: adminLogin.email });

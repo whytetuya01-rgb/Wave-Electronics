@@ -18,8 +18,8 @@ async function runVerification() {
   // Use connectDB() (not a raw mongoose.connect()) so getIsReplicaSet()
   // correctly reflects this connection - the Priority 4 approval tests
   // below depend on this to detect a replica-set deployment.
-  await connectDB();
   assertDisposableDatabase('test-api');
+  await connectDB();
 
   // Test 1: Verify Users and Password comparison
   console.log('[Test 1]: Testing User Authentication & Password Hashing');

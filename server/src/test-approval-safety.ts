@@ -14,8 +14,8 @@ async function runApprovalSafetyCheck() {
   console.log('   TEST 44 - APPROVAL FAILS SAFELY WITHOUT TRANSACTIONS');
   console.log('====================================================\n');
 
-  await connectDB();
   assertDisposableDatabase('test-approval-safety');
+  await connectDB();
 
   if (getIsReplicaSet()) {
     console.log('  ⚠ This MongoDB connection IS a replica set - this check needs a standalone');

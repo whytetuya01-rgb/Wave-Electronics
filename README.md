@@ -11,7 +11,9 @@ There are no built-in accounts or default passwords. Passwords need at least 12 
 - **Demo data** (development, preview or test databases only): `npm run seed -w server` with `MONGODB_URI`, `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` set. It deletes the target database's data first and refuses any database whose name doesn't end in `_preview`, `_dev` or `_test` (or isn't on your own machine).
 - **An admin on any database, production included**: `npm run admin:setup -w server` with `MONGODB_URI`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` set. It creates the admin, or sets a new password for an existing admin; it never deletes anything.
 
-See DEPLOYMENT.md, parts 3 and 8, for step-by-step commands.
+- **Which database this machine uses**: `npm run env:check -w server` (secrets hidden). Local development must use `wave_electronics_dev` (or a local MongoDB); the server refuses the production database `wave_electronics`.
+
+See DEPLOYMENT.md, parts 2, 3 and 8, for step-by-step commands.
 
 ## Environment Variables
 

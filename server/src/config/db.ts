@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { resolveMongoUri } from './env.js';
-import { deploymentDatabaseMismatch } from './databaseSafety.js';
+import { connectionTarget, environmentDatabaseMismatch } from './databaseSafety.js';
 
 let isReplicaSet = false;
 let connection: Promise<typeof mongoose> | null = null;
@@ -21,7 +21,15 @@ export const connectDB = () => {
 
 const openConnection = async () => {
   try {
-    const conn = await mongoose.connect(resolveMongoUri());
+    const uri = resolveMongoUri();
+    // Before connecting: connecting already creates collections and indexes.
+    const target = connectionTarget(uri);
+    const mismatch = environmentDatabaseMismatch(target.name, target.host);
+    if (mismatch) {
+      throw new Error(`[FATAL] ${mismatch} Refusing to connect.`);
+    }
+
+    const conn = await mongoose.connect(uri);
     console.log(`[MongoDB Connected]: ${conn.connection.host}/${conn.connection.name}`);
     
     // Check if connected MongoDB instance is a replica set
@@ -77,12 +85,6 @@ const openConnection = async () => {
         '[FATAL] Production requires a transaction-capable MongoDB replica set. ' +
           'Standalone MongoDB cannot guarantee atomic multi-document stock operations. Refusing to start.'
       );
-    }
-
-    const mismatch = deploymentDatabaseMismatch(conn.connection.name);
-    if (mismatch) {
-      await mongoose.disconnect();
-      throw new Error(`[FATAL] ${mismatch} Refusing to start.`);
     }
 
     return conn;

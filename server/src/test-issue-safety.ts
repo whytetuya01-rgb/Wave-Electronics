@@ -14,8 +14,8 @@ async function runIssueSafetyCheck() {
   console.log('   TEST - MATERIAL ISSUE FAILS SAFELY WITHOUT TRANSACTIONS');
   console.log('====================================================\n');
 
-  await connectDB();
   assertDisposableDatabase('test-issue-safety');
+  await connectDB();
 
   if (getIsReplicaSet()) {
     console.log('  ⚠ This MongoDB connection IS a replica set - this check needs a standalone');

@@ -12,7 +12,8 @@
     "start": "node dist/server.js",
     "seed": "tsx src/seed.ts",
     "admin:setup": "tsx src/setup-admin.ts",
-    "env:check": "tsx src/check-env.ts"
+    "env:check": "tsx src/check-env.ts",
+    "env:set-db-password": "tsx src/set-db-password.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { FolderTree, Ruler, MapPin, Plus, Trash2, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { FolderTree, Ruler, MapPin, Pencil, Trash2, X } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { TablePagination } from '../components/ui/TablePagination';
 import { usePagination } from '../hooks/usePagination';
@@ -24,17 +24,79 @@ type CategoryFormData = z.infer<typeof masterCategorySchema>;
 type UnitFormData = z.infer<typeof masterUnitSchema>;
 type LocationFormData = z.infer<typeof masterLocationSchema>;
 
+interface Category { _id: string; name: string; description?: string; componentCount: number }
+interface Unit { _id: string; name: string; shortCode: string; componentCount: number }
+interface StorageLocation { _id: string; name: string; zone?: string; description?: string; componentCount: number }
+
+type MasterType = 'category' | 'unit' | 'location';
+
+// Edit + delete buttons for one row. Delete is admin-only and disabled while
+// components still use the record (the server refuses it too).
+const RowActions: React.FC<{
+  label: string;
+  inUse: number;
+  canEdit: boolean;
+  canDelete: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}> = ({ label, inUse, canEdit, canDelete, onEdit, onDelete }) => (
+  <div className="flex items-center justify-end gap-1">
+    {canEdit && (
+      <button onClick={onEdit} title={`Edit ${label}`} aria-label={`Edit ${label}`} className="btn-ghost p-1 text-[#A69B8D] hover:text-[#171717]">
+        <Pencil className="w-3.5 h-3.5" />
+      </button>
+    )}
+    {canDelete && (
+      <button
+        onClick={onDelete}
+        disabled={inUse > 0}
+        title={inUse > 0 ? `Can't delete: used by ${inUse} component${inUse === 1 ? '' : 's'}` : `Delete ${label}`}
+        aria-label={`Delete ${label}`}
+        className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A] disabled:opacity-35 disabled:hover:text-[#A69B8D] disabled:cursor-not-allowed"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    )}
+  </div>
+);
+
+// Heading of the add/edit form card; shows which record is being edited.
+const FormHeading: React.FC<{ noun: string; editingName?: string; onCancel: () => void }> = ({ noun, editingName, onCancel }) => (
+  <div className="flex items-start justify-between gap-2 mb-2.5">
+    <div>
+      <h3 className="text-xs font-bold text-[#171717]">{editingName ? `Edit ${noun}` : `Add ${noun}`}</h3>
+      {editingName && <p className="text-[11px] text-[#716B64] mt-0.5 truncate">Editing '{editingName}'</p>}
+    </div>
+    {editingName && (
+      <button type="button" onClick={onCancel} title="Cancel editing" aria-label="Cancel editing" className="btn-ghost p-1 text-[#A69B8D] hover:text-[#171717]">
+        <X className="w-3.5 h-3.5" />
+      </button>
+    )}
+  </div>
+);
+
+const InUse: React.FC<{ count: number }> = ({ count }) => (
+  <span className={`font-mono text-xs ${count > 0 ? 'text-[#171717] font-semibold' : 'text-[#A69B8D]'}`}>{count}</span>
+);
+
 export const Masters: React.FC = () => {
   const { isStoreKeeper, isAdmin } = useAuth();
+  // Store keepers and admins add and edit; only admins delete.
+  const canManage = isStoreKeeper;
   const [activeTab, setActiveTab] = useState<'categories' | 'units' | 'locations'>('categories');
 
-  const [categories, setCategories] = useState<any[]>([]);
-  const [units, setUnits] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [locations, setLocations] = useState<StorageLocation[]>([]);
   const categoriesPagination = usePagination(categories);
   const unitsPagination = usePagination(units);
   const locationsPagination = usePagination(locations);
   const [loading, setLoading] = useState(true);
+
+  const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
+  const [editingLoc, setEditingLoc] = useState<StorageLocation | null>(null);
+  const formCardRef = useRef<HTMLDivElement>(null);
 
   // Category Form
   const {
@@ -42,6 +104,7 @@ export const Masters: React.FC = () => {
     handleSubmit: handleSubmitCat,
     reset: resetCat,
     setError: setCatError,
+    setFocus: setCatFocus,
     formState: { errors: catErrors, isSubmitting: isCatSubmitting },
   } = useForm<CategoryFormData>({
     resolver: zodResolver(masterCategorySchema),
@@ -55,6 +118,7 @@ export const Masters: React.FC = () => {
     handleSubmit: handleSubmitUnit,
     reset: resetUnit,
     setError: setUnitError,
+    setFocus: setUnitFocus,
     formState: { errors: unitErrors, isSubmitting: isUnitSubmitting },
   } = useForm<UnitFormData>({
     resolver: zodResolver(masterUnitSchema),
@@ -68,6 +132,7 @@ export const Masters: React.FC = () => {
     handleSubmit: handleSubmitLoc,
     reset: resetLoc,
     setError: setLocError,
+    setFocus: setLocFocus,
     formState: { errors: locErrors, isSubmitting: isLocSubmitting },
   } = useForm<LocationFormData>({
     resolver: zodResolver(masterLocationSchema),
@@ -75,11 +140,7 @@ export const Masters: React.FC = () => {
     defaultValues: { name: '', zone: '', description: '' },
   });
 
-  const [deleteTarget, setDeleteTarget] = useState<{
-    id: string;
-    type: 'category' | 'unit' | 'location';
-    name: string;
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: MasterType; name: string } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
@@ -105,68 +166,98 @@ export const Masters: React.FC = () => {
     }
   };
 
-  const handleAddCategory = async (data: CategoryFormData) => {
+  // Brings the form (above the table on narrow screens) into view and puts
+  // the cursor in its first field.
+  const focusForm = (focus: () => void) => {
+    formCardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    requestAnimationFrame(focus);
+  };
+
+  // ----- Categories -----
+  const startEditCategory = (cat: Category) => {
+    setEditingCat(cat);
+    resetCat({ name: cat.name, description: cat.description || '' });
+    focusForm(() => setCatFocus('name'));
+  };
+  const cancelEditCategory = () => {
+    setEditingCat(null);
+    resetCat({ name: '', description: '' });
+  };
+  const handleSaveCategory = async (data: CategoryFormData) => {
+    const payload = { name: data.name.trim(), description: data.description?.trim() || '' };
     try {
-      await api.post('/masters/categories', {
-        name: data.name.trim(),
-        description: data.description?.trim() || '',
-      });
-      resetCat();
-      toast.success('Category created successfully');
+      if (editingCat) {
+        await api.put(`/masters/categories/${editingCat._id}`, payload);
+        toast.success(`Category '${payload.name}' updated`);
+      } else {
+        await api.post('/masters/categories', payload);
+        toast.success('Category created successfully');
+      }
+      cancelEditCategory();
       fetchMasters();
     } catch (err: any) {
-      const fieldErrorFound = applyServerValidationErrors(err, setCatError);
-      if (!fieldErrorFound) {
-        toast.error(getApiErrorMessage(err, 'Failed to add category'));
+      if (!applyServerValidationErrors(err, setCatError)) {
+        toast.error(getApiErrorMessage(err, editingCat ? 'Failed to update category' : 'Failed to add category'));
       }
     }
   };
 
-  const handleDeleteCategory = (cat: any) => {
-    setDeleteTarget({ id: cat._id, type: 'category', name: cat.name });
+  // ----- Units -----
+  const startEditUnit = (u: Unit) => {
+    setEditingUnit(u);
+    resetUnit({ name: u.name, shortCode: u.shortCode });
+    focusForm(() => setUnitFocus('name'));
   };
-
-  const handleAddUnit = async (data: UnitFormData) => {
+  const cancelEditUnit = () => {
+    setEditingUnit(null);
+    resetUnit({ name: '', shortCode: '' });
+  };
+  const handleSaveUnit = async (data: UnitFormData) => {
+    const payload = { name: data.name.trim(), shortCode: data.shortCode.trim().toUpperCase() };
     try {
-      await api.post('/masters/units', {
-        name: data.name.trim(),
-        shortCode: data.shortCode.trim().toUpperCase(),
-      });
-      resetUnit();
-      toast.success('Unit created successfully');
+      if (editingUnit) {
+        await api.put(`/masters/units/${editingUnit._id}`, payload);
+        toast.success(`Unit '${payload.name}' updated`);
+      } else {
+        await api.post('/masters/units', payload);
+        toast.success('Unit created successfully');
+      }
+      cancelEditUnit();
       fetchMasters();
     } catch (err: any) {
-      const fieldErrorFound = applyServerValidationErrors(err, setUnitError);
-      if (!fieldErrorFound) {
-        toast.error(getApiErrorMessage(err, 'Failed to add unit'));
+      if (!applyServerValidationErrors(err, setUnitError)) {
+        toast.error(getApiErrorMessage(err, editingUnit ? 'Failed to update unit' : 'Failed to add unit'));
       }
     }
   };
 
-  const handleDeleteUnit = (u: any) => {
-    setDeleteTarget({ id: u._id, type: 'unit', name: `${u.name} (${u.shortCode})` });
+  // ----- Storage locations -----
+  const startEditLocation = (l: StorageLocation) => {
+    setEditingLoc(l);
+    resetLoc({ name: l.name, zone: l.zone || '', description: l.description || '' });
+    focusForm(() => setLocFocus('name'));
   };
-
-  const handleAddLocation = async (data: LocationFormData) => {
+  const cancelEditLocation = () => {
+    setEditingLoc(null);
+    resetLoc({ name: '', zone: '', description: '' });
+  };
+  const handleSaveLocation = async (data: LocationFormData) => {
+    const payload = { name: data.name.trim(), zone: data.zone?.trim() || '', description: data.description?.trim() || '' };
     try {
-      await api.post('/masters/locations', {
-        name: data.name.trim(),
-        zone: data.zone?.trim() || '',
-        description: data.description?.trim() || '',
-      });
-      resetLoc();
-      toast.success('Storage location created successfully');
+      if (editingLoc) {
+        await api.put(`/masters/locations/${editingLoc._id}`, payload);
+        toast.success(`Location '${payload.name}' updated`);
+      } else {
+        await api.post('/masters/locations', payload);
+        toast.success('Storage location created successfully');
+      }
+      cancelEditLocation();
       fetchMasters();
     } catch (err: any) {
-      const fieldErrorFound = applyServerValidationErrors(err, setLocError);
-      if (!fieldErrorFound) {
-        toast.error(getApiErrorMessage(err, 'Failed to add location'));
+      if (!applyServerValidationErrors(err, setLocError)) {
+        toast.error(getApiErrorMessage(err, editingLoc ? 'Failed to update location' : 'Failed to add location'));
       }
     }
-  };
-
-  const handleDeleteLocation = (l: any) => {
-    setDeleteTarget({ id: l._id, type: 'location', name: l.name });
   };
 
   const executeDeleteTarget = async () => {
@@ -175,12 +266,15 @@ export const Masters: React.FC = () => {
     try {
       if (deleteTarget.type === 'category') {
         await api.delete(`/masters/categories/${deleteTarget.id}`);
+        if (editingCat?._id === deleteTarget.id) cancelEditCategory();
         toast.success(`Category '${deleteTarget.name}' deleted successfully`);
       } else if (deleteTarget.type === 'unit') {
         await api.delete(`/masters/units/${deleteTarget.id}`);
+        if (editingUnit?._id === deleteTarget.id) cancelEditUnit();
         toast.success(`Unit '${deleteTarget.name}' deleted successfully`);
-      } else if (deleteTarget.type === 'location') {
+      } else {
         await api.delete(`/masters/locations/${deleteTarget.id}`);
+        if (editingLoc?._id === deleteTarget.id) cancelEditLocation();
         toast.success(`Location '${deleteTarget.name}' deleted successfully`);
       }
       setDeleteTarget(null);
@@ -192,6 +286,28 @@ export const Masters: React.FC = () => {
     }
   };
 
+  const tabClass = (tab: typeof activeTab) =>
+    `flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
+      activeTab === tab ? 'border-[#807365] text-[#171717]' : 'border-transparent text-[#6B6863] hover:text-[#171717]'
+    }`;
+  const formCardClass = (editing: boolean) =>
+    `md:col-span-1 enterprise-card p-4 h-fit scroll-mt-4 ${editing ? 'ring-1 ring-[#807365]/40 bg-[#FAF9F7]' : ''}`;
+  const tableSpan = canManage ? 'md:col-span-2' : 'md:col-span-3';
+  const rowClass = (editing: boolean) => `tr-enterprise ${editing ? 'bg-[#A69B8D]/10' : ''}`;
+  const saveButton = (submitting: boolean, editing: boolean, noun: string) => (
+    <div className="flex gap-2">
+      {editing && (
+        <button type="button" onClick={() => (activeTab === 'categories' ? cancelEditCategory() : activeTab === 'units' ? cancelEditUnit() : cancelEditLocation())} className="btn-secondary flex-1">
+          Cancel
+        </button>
+      )}
+      <button type="submit" disabled={submitting} className="btn-primary flex-1 flex items-center justify-center gap-2">
+        {submitting && <ButtonSpinner />}
+        <span>{editing ? 'Save Changes' : `Create ${noun}`}</span>
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-6 w-full">
       <PageHeader
@@ -202,108 +318,75 @@ export const Masters: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-[#E6E3DE]">
-        <button
-          onClick={() => setActiveTab('categories')}
-          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
-            activeTab === 'categories'
-              ? 'border-[#807365] text-[#171717]'
-              : 'border-transparent text-[#6B6863] hover:text-[#171717]'
-          }`}
-        >
+        <button onClick={() => setActiveTab('categories')} className={tabClass('categories')}>
           <FolderTree className="w-3.5 h-3.5" />
           Categories ({categories.length})
         </button>
-
-        <button
-          onClick={() => setActiveTab('units')}
-          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
-            activeTab === 'units'
-              ? 'border-[#807365] text-[#171717]'
-              : 'border-transparent text-[#6B6863] hover:text-[#171717]'
-          }`}
-        >
+        <button onClick={() => setActiveTab('units')} className={tabClass('units')}>
           <Ruler className="w-3.5 h-3.5" />
           Units ({units.length})
         </button>
-
-        <button
-          onClick={() => setActiveTab('locations')}
-          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-all ${
-            activeTab === 'locations'
-              ? 'border-[#807365] text-[#171717]'
-              : 'border-transparent text-[#6B6863] hover:text-[#171717]'
-          }`}
-        >
+        <button onClick={() => setActiveTab('locations')} className={tabClass('locations')}>
           <MapPin className="w-3.5 h-3.5" />
           Storage Locations ({locations.length})
         </button>
       </div>
 
+      {!canManage && <p className="text-xs text-[#716B64]">View only: store keepers and admins can add or change master data.</p>}
+
       {/* TAB 1: CATEGORIES */}
       {activeTab === 'categories' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="md:col-span-1 enterprise-card p-4 h-fit">
-            <h3 className="text-xs font-bold text-[#171717] mb-2.5">Add Category</h3>
-            <form onSubmit={handleSubmitCat(handleAddCategory)} className="space-y-3" noValidate>
-              <FormField label="Category Name" error={catErrors.name?.message} required>
-                <ValidatedInput
-                  type="text"
-                  placeholder="e.g. Optocouplers"
-                  hasError={!!catErrors.name}
-                  {...registerCat('name')}
-                />
-              </FormField>
-              <FormField label="Description" error={catErrors.description?.message}>
-                <ValidatedTextarea
-                  rows={2}
-                  placeholder="Description..."
-                  hasError={!!catErrors.description}
-                  {...registerCat('description')}
-                />
-              </FormField>
-              <button
-                type="submit"
-                disabled={isCatSubmitting}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                {isCatSubmitting && <ButtonSpinner />}
-                <span>Create Category</span>
-              </button>
-            </form>
-          </div>
+          {canManage && (
+            <div ref={formCardRef} className={formCardClass(!!editingCat)}>
+              <FormHeading noun="Category" editingName={editingCat?.name} onCancel={cancelEditCategory} />
+              <form onSubmit={handleSubmitCat(handleSaveCategory)} className="space-y-3" noValidate>
+                <FormField label="Category Name" error={catErrors.name?.message} required>
+                  <ValidatedInput type="text" placeholder="e.g. Optocouplers" hasError={!!catErrors.name} {...registerCat('name')} />
+                </FormField>
+                <FormField label="Description" error={catErrors.description?.message}>
+                  <ValidatedTextarea rows={2} placeholder="Description..." hasError={!!catErrors.description} {...registerCat('description')} />
+                </FormField>
+                {saveButton(isCatSubmitting, !!editingCat, 'Category')}
+              </form>
+            </div>
+          )}
 
-          <div className="md:col-span-2 enterprise-card overflow-hidden">
+          <div className={`${tableSpan} enterprise-card overflow-hidden`}>
             <table className="min-w-full divide-y divide-[#E6E3DE]">
               <thead>
                 <tr>
                   <th className="th-enterprise">Category Name</th>
                   <th className="th-enterprise">Description</th>
-                  {isAdmin && <th className="th-enterprise text-right">Action</th>}
+                  <th className="th-enterprise text-right">Components</th>
+                  {canManage && <th className="th-enterprise text-right">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
                 {loading ? (
-                  <TableSkeleton rows={4} cols={isAdmin ? 3 : 2} />
+                  <TableSkeleton rows={4} cols={canManage ? 4 : 3} />
                 ) : categories.length === 0 ? (
                   <tr>
-                    <td colSpan={isAdmin ? 3 : 2} className="py-8 text-center text-xs text-[#716B64]">
+                    <td colSpan={canManage ? 4 : 3} className="py-8 text-center text-xs text-[#716B64]">
                       No categories added yet
                     </td>
                   </tr>
                 ) : (
                   categoriesPagination.pageItems.map((cat) => (
-                    <tr key={cat._id} className="tr-enterprise">
+                    <tr key={cat._id} className={rowClass(editingCat?._id === cat._id)}>
                       <td className="td-enterprise font-semibold text-[#171717]">{cat.name}</td>
                       <td className="td-enterprise text-[#6B6863] text-xs">{cat.description || '-'}</td>
-                      {isAdmin && (
+                      <td className="td-enterprise text-right"><InUse count={cat.componentCount} /></td>
+                      {canManage && (
                         <td className="td-enterprise text-right">
-                          <button
-                            onClick={() => handleDeleteCategory(cat)}
-                            title="Delete Category"
-                            className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <RowActions
+                            label={`category ${cat.name}`}
+                            inUse={cat.componentCount}
+                            canEdit={canManage}
+                            canDelete={isAdmin}
+                            onEdit={() => startEditCategory(cat)}
+                            onDelete={() => setDeleteTarget({ id: cat._id, type: 'category', name: cat.name })}
+                          />
                         </td>
                       )}
                     </tr>
@@ -326,69 +409,61 @@ export const Masters: React.FC = () => {
       {/* TAB 2: UNITS */}
       {activeTab === 'units' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="md:col-span-1 enterprise-card p-4 h-fit">
-            <h3 className="text-xs font-bold text-[#171717] mb-2.5">Add Unit</h3>
-            <form onSubmit={handleSubmitUnit(handleAddUnit)} className="space-y-3" noValidate>
-              <FormField label="Unit Name" error={unitErrors.name?.message} required>
-                <ValidatedInput
-                  type="text"
-                  placeholder="e.g. Kilograms"
-                  hasError={!!unitErrors.name}
-                  {...registerUnit('name')}
-                />
-              </FormField>
-              <FormField label="Short Code" error={unitErrors.shortCode?.message} required hint="e.g. KG, NOS, MTR">
-                <ValidatedInput
-                  type="text"
-                  placeholder="e.g. KG"
-                  className="uppercase font-mono"
-                  hasError={!!unitErrors.shortCode}
-                  {...registerUnit('shortCode')}
-                />
-              </FormField>
-              <button
-                type="submit"
-                disabled={isUnitSubmitting}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                {isUnitSubmitting && <ButtonSpinner />}
-                <span>Create Unit</span>
-              </button>
-            </form>
-          </div>
+          {canManage && (
+            <div ref={formCardRef} className={formCardClass(!!editingUnit)}>
+              <FormHeading noun="Unit" editingName={editingUnit ? `${editingUnit.name} (${editingUnit.shortCode})` : undefined} onCancel={cancelEditUnit} />
+              <form onSubmit={handleSubmitUnit(handleSaveUnit)} className="space-y-3" noValidate>
+                <FormField label="Unit Name" error={unitErrors.name?.message} required>
+                  <ValidatedInput type="text" placeholder="e.g. Kilograms" hasError={!!unitErrors.name} {...registerUnit('name')} />
+                </FormField>
+                <FormField label="Short Code" error={unitErrors.shortCode?.message} required hint="e.g. KG, NOS, MTR">
+                  <ValidatedInput type="text" placeholder="e.g. KG" className="uppercase font-mono" hasError={!!unitErrors.shortCode} {...registerUnit('shortCode')} />
+                </FormField>
+                {editingUnit && editingUnit.componentCount > 0 && (
+                  <p className="text-[11px] text-[#716B64]">
+                    {editingUnit.componentCount} component{editingUnit.componentCount === 1 ? '' : 's'} will show the new name and code. Documents already issued keep the code they were printed with.
+                  </p>
+                )}
+                {saveButton(isUnitSubmitting, !!editingUnit, 'Unit')}
+              </form>
+            </div>
+          )}
 
-          <div className="md:col-span-2 enterprise-card overflow-hidden">
+          <div className={`${tableSpan} enterprise-card overflow-hidden`}>
             <table className="min-w-full divide-y divide-[#E6E3DE]">
               <thead>
                 <tr>
                   <th className="th-enterprise">Unit Name</th>
                   <th className="th-enterprise">Short Code</th>
-                  {isAdmin && <th className="th-enterprise text-right">Action</th>}
+                  <th className="th-enterprise text-right">Components</th>
+                  {canManage && <th className="th-enterprise text-right">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
                 {loading ? (
-                  <TableSkeleton rows={4} cols={isAdmin ? 3 : 2} />
+                  <TableSkeleton rows={4} cols={canManage ? 4 : 3} />
                 ) : units.length === 0 ? (
                   <tr>
-                    <td colSpan={isAdmin ? 3 : 2} className="py-8 text-center text-xs text-[#716B64]">
+                    <td colSpan={canManage ? 4 : 3} className="py-8 text-center text-xs text-[#716B64]">
                       No units added yet
                     </td>
                   </tr>
                 ) : (
                   unitsPagination.pageItems.map((u) => (
-                    <tr key={u._id} className="tr-enterprise">
+                    <tr key={u._id} className={rowClass(editingUnit?._id === u._id)}>
                       <td className="td-enterprise font-semibold text-[#171717]">{u.name}</td>
                       <td className="td-enterprise font-mono font-bold text-[#171717]">{u.shortCode}</td>
-                      {isAdmin && (
+                      <td className="td-enterprise text-right"><InUse count={u.componentCount} /></td>
+                      {canManage && (
                         <td className="td-enterprise text-right">
-                          <button
-                            onClick={() => handleDeleteUnit(u)}
-                            title="Delete Unit"
-                            className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <RowActions
+                            label={`unit ${u.name}`}
+                            inUse={u.componentCount}
+                            canEdit={canManage}
+                            canDelete={isAdmin}
+                            onEdit={() => startEditUnit(u)}
+                            onDelete={() => setDeleteTarget({ id: u._id, type: 'unit', name: `${u.name} (${u.shortCode})` })}
+                          />
                         </td>
                       )}
                     </tr>
@@ -411,78 +486,61 @@ export const Masters: React.FC = () => {
       {/* TAB 3: STORAGE LOCATIONS */}
       {activeTab === 'locations' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="md:col-span-1 enterprise-card p-4 h-fit">
-            <h3 className="text-xs font-bold text-[#171717] mb-2.5">Add Storage Location</h3>
-            <form onSubmit={handleSubmitLoc(handleAddLocation)} className="space-y-3" noValidate>
-              <FormField label="Rack / Bin Name" error={locErrors.name?.message} required>
-                <ValidatedInput
-                  type="text"
-                  placeholder="e.g. Rack D - Bin 04"
-                  hasError={!!locErrors.name}
-                  {...registerLoc('name')}
-                />
-              </FormField>
-              <FormField label="Zone (Optional)" error={locErrors.zone?.message}>
-                <ValidatedInput
-                  type="text"
-                  placeholder="e.g. Zone D"
-                  hasError={!!locErrors.zone}
-                  {...registerLoc('zone')}
-                />
-              </FormField>
-              <FormField label="Description" error={locErrors.description?.message}>
-                <ValidatedTextarea
-                  rows={2}
-                  placeholder="Notes..."
-                  hasError={!!locErrors.description}
-                  {...registerLoc('description')}
-                />
-              </FormField>
-              <button
-                type="submit"
-                disabled={isLocSubmitting}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                {isLocSubmitting && <ButtonSpinner />}
-                <span>Create Location</span>
-              </button>
-            </form>
-          </div>
+          {canManage && (
+            <div ref={formCardRef} className={formCardClass(!!editingLoc)}>
+              <FormHeading noun="Storage Location" editingName={editingLoc?.name} onCancel={cancelEditLocation} />
+              <form onSubmit={handleSubmitLoc(handleSaveLocation)} className="space-y-3" noValidate>
+                <FormField label="Rack / Bin Name" error={locErrors.name?.message} required>
+                  <ValidatedInput type="text" placeholder="e.g. Rack D - Bin 04" hasError={!!locErrors.name} {...registerLoc('name')} />
+                </FormField>
+                <FormField label="Zone (Optional)" error={locErrors.zone?.message}>
+                  <ValidatedInput type="text" placeholder="e.g. Zone D" hasError={!!locErrors.zone} {...registerLoc('zone')} />
+                </FormField>
+                <FormField label="Description" error={locErrors.description?.message}>
+                  <ValidatedTextarea rows={2} placeholder="Notes..." hasError={!!locErrors.description} {...registerLoc('description')} />
+                </FormField>
+                {saveButton(isLocSubmitting, !!editingLoc, 'Location')}
+              </form>
+            </div>
+          )}
 
-          <div className="md:col-span-2 enterprise-card overflow-hidden">
+          <div className={`${tableSpan} enterprise-card overflow-hidden`}>
             <table className="min-w-full divide-y divide-[#E6E3DE]">
               <thead>
                 <tr>
                   <th className="th-enterprise">Location Name</th>
                   <th className="th-enterprise">Zone</th>
                   <th className="th-enterprise">Description</th>
-                  {isAdmin && <th className="th-enterprise text-right">Action</th>}
+                  <th className="th-enterprise text-right">Components</th>
+                  {canManage && <th className="th-enterprise text-right">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E4DE]/60 bg-white">
                 {loading ? (
-                  <TableSkeleton rows={4} cols={isAdmin ? 4 : 3} />
+                  <TableSkeleton rows={4} cols={canManage ? 5 : 4} />
                 ) : locations.length === 0 ? (
                   <tr>
-                    <td colSpan={isAdmin ? 4 : 3} className="py-8 text-center text-xs text-[#716B64]">
+                    <td colSpan={canManage ? 5 : 4} className="py-8 text-center text-xs text-[#716B64]">
                       No storage locations added yet
                     </td>
                   </tr>
                 ) : (
                   locationsPagination.pageItems.map((l) => (
-                    <tr key={l._id} className="tr-enterprise">
+                    <tr key={l._id} className={rowClass(editingLoc?._id === l._id)}>
                       <td className="td-enterprise font-semibold text-[#171717]">{l.name}</td>
                       <td className="td-enterprise text-[#6B6863] text-xs">{l.zone || '-'}</td>
                       <td className="td-enterprise text-[#6B6863] text-xs">{l.description || '-'}</td>
-                      {isAdmin && (
+                      <td className="td-enterprise text-right"><InUse count={l.componentCount} /></td>
+                      {canManage && (
                         <td className="td-enterprise text-right">
-                          <button
-                            onClick={() => handleDeleteLocation(l)}
-                            title="Delete Location"
-                            className="btn-ghost p-1 text-[#A69B8D] hover:text-[#C2413A]"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <RowActions
+                            label={`location ${l.name}`}
+                            inUse={l.componentCount}
+                            canEdit={canManage}
+                            canDelete={isAdmin}
+                            onEdit={() => startEditLocation(l)}
+                            onDelete={() => setDeleteTarget({ id: l._id, type: 'location', name: l.name })}
+                          />
                         </td>
                       )}
                     </tr>
@@ -508,7 +566,7 @@ export const Masters: React.FC = () => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDeleteTarget}
         title={`Delete ${deleteTarget?.type ? deleteTarget.type.charAt(0).toUpperCase() + deleteTarget.type.slice(1) : ''}`}
-        description={`Are you sure you want to delete ${deleteTarget?.type} '${deleteTarget?.name}'? Components referencing this may be affected.`}
+        description={`Permanently delete ${deleteTarget?.type} '${deleteTarget?.name}'? This can't be undone. It's only allowed while no component uses it.`}
         confirmText={`Delete ${deleteTarget?.type ? deleteTarget.type.charAt(0).toUpperCase() + deleteTarget.type.slice(1) : ''}`}
         isLoading={deleteLoading}
         variant="danger"
